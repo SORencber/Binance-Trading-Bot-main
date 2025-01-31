@@ -1,0 +1,38 @@
+trading_bot/
+ ├── README.md
+ ├── requirements.txt
+ ├── .env                             # BINANCE_API_KEY, SECRET, TWITTER_TOKEN, vs.
+ ├── config/
+ │    └── bot_config.py               # Parametreler + Data kaynağı
+ ├── core/
+ │    ├── logging_setup.py            # JSON logger
+ │    ├── utils.py                    # check_lot, ...
+ │    ├── context.py                  # SharedContext, SymbolState
+ │    └── order_manager.py            # RealOrderManager
+ ├── data/
+ │    ├── data_collector.py           # loop_data_collector => price verisi + ...
+ │    ├── user_data.py                # user_data_reader + fill
+ │    ├── sentiment_data.py           # Twitter/haber toplama (placeholder)
+ │    └── onchain_data.py   
+      --- data_fetching.py          # on-chain, fear&greed, ...
+ ├── strategy/
+ │    ├── base.py                     # IStrategy
+ │    ├── paper_order.py              # Paper emir
+ │    ├           # scikit/keras
+ │    ├── advanced_behavior.py        # Davranışsal veriyi kullanan ML/RL 
+ │    ├── manager.py                  # StrategyManager => mode= 'behavior'
+ ├── backtests/
+ │    ├── trainer_behavior.py         # offline sentiment+onchain + ML
+ │    └── backtest.py    
+---- models/
+      ---train_lstsm.py
+      ---train_rl.py
+      --- train_xgboost.py     
+---- inference
+     --lstm_agent.py
+     --rl_agent.py
+     --xgboost_agen.py             # basit sim + sentiment
+ ├── tests/
+ │    └── test_core.py                # unit/integration test
+ └── main.py    
+ ----.env                      # manage_tasks => concurrency

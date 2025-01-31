@@ -1,0 +1,14 @@
+{
+  "symbol": "BTCUSDT",
+  "time_frames": {
+    "15m": {
+      "best_params": {
+        "left_bars": 5,
+        "right_bars": 10,
+        "volume_factor": 1.0,
+        "atr_factor": 0.0
+      },
+      "best_score": 19.2338
+    }
+  }
+}

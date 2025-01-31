@@ -1,0 +1,13 @@
+Metadata-Version: 2.2
+Name: advanced_bot2
+Version: 0.1.0
+Summary: Binance Trading Bot - advanced_bot2
+Home-page: https://github.com/... or your URL
+Author: YourName
+Author-email: youremail@example.com
+Requires-Python: >=3.8
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: requires-python
+Dynamic: summary
