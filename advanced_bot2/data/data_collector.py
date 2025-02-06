@@ -19,7 +19,7 @@ from .tf_indicators import (
     calculate_indicators_1h,
     calculate_indicators_4h,
     calculate_indicators_1d,
-    add_oi_indicators,
+    add_oi_indicators,holy_grail_all_timeframes,
     analyze_trends_and_signals_v6
 )
 from .data_fetching import(
@@ -453,6 +453,7 @@ def load_and_calc_1d(csv_path_1d: str) -> pd.DataFrame:
     df_1d.columns = new_cols
     
     return df_1d
+
 def merge_all_tfs(
     df_1m: pd.DataFrame,
     df_5m: pd.DataFrame,
@@ -691,12 +692,13 @@ async def loop_data_collector(ctx: SharedContext, strategy):
                 df_final.loc[last_idx,'Open_Interest'] = open_interest
                 # 11) synergy / analyze
                 print("analiz basladi")
-                result = analyze_trends_and_signals_v6(df_final)
+                #holy_grail_all_timeframes(df_final)
+                #result = analyze_trends_and_signals_v6(df_final)
                 # #df_final.to_csv("data/price_data.csv", index=False)
                 
-                print("RESULT =>", result)
-                print("Detail Scores =>", result["detail_scores"])
-                print("Delayed Signals =>", result["delayed_signals"])
+                #print("RESULT =>", result)
+                #print("Detail Scores =>", result["detail_scores"])
+                #print("Delayed Signals =>", result["delayed_signals"])
                 if s not in ctx.df_map:
                     ctx.df_map[s] = {}
                 ctx.df_map[s]["merged"] = df_final
@@ -712,7 +714,7 @@ async def loop_data_collector(ctx: SharedContext, strategy):
 
             # 12) strategy analyze
             await strategy.analyze_data()
-            await asyncio.sleep(60)
+            await asyncio.sleep(300)
 
         except Exception as e:
             log(f"[loop_data_collector] => {e}\n{traceback.format_exc()}", "error")

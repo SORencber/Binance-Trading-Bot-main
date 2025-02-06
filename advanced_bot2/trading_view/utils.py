@@ -1,4 +1,4 @@
-from trading_view.patterns.all_patterns import load_best_params_from_json,optimize_parameters,PivotScanner
+from trading_view.patterns.all_patterns import load_best_params_from_json,optimize_system_parameters,PivotScanner
 def run_scanner(df, symbol, time_frame, system_params):
     """
     df:             Mevcut veri DataFrame
@@ -25,10 +25,15 @@ def run_scanner(df, symbol, time_frame, system_params):
     if best_params is None:
         print(f"[run_scanner] => No best_params found in JSON for {symbol}-{time_frame}.")
         print("[run_scanner] => Running optimize_parameters to create new best_params...")
-
+        pivot_param_grid = {
+        "left_bars": [5,10],
+        "right_bars":[5,10],
+        "volume_factor":[1.0,1.2],
+        "atr_factor":[0.0,0.2]
+    }
         # 2) optimize_parameters
         # Bu fonksiyon kendi içinde best_params'ı JSON'a kaydediyor.
-        opt_result = optimize_parameters(df, symbol, time_frame)
+        opt_result = optimize_system_parameters(df, symbol, time_frame)
         best_params = opt_result["best_params"]  # Sözlük: {"left_bars":..., "right_bars":..., "volume_factor":..., "atr_factor":...}
         print("best_params", symbol, best_params)
     # 3) best_params + system_params harmanlama

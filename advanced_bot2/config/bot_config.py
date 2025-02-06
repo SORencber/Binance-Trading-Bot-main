@@ -25,7 +25,7 @@ BOT_CONFIG = {
     "paper_trading": True,
      # OCO ile Kademeli mi ? 
     "use_oco_kademeli" :False,
-    "symbols": ["XRPUSDT"], # "" => advanced_strategy, "ml", "rl", ...
+    "symbols": ["BTCUSDT"], # "" => advanced_strategy, "ml", "rl", ...
     # Birden fazla borsa için veriler
     "exchanges": {
         "binance": {
@@ -97,11 +97,11 @@ BOT_CONFIG = {
   
     # Telegram commands
     "telegram_commands": True,
-    "telegram_token": os.getenv("TELEGRAM_BOT_TOKEN","7598089751:AAFtlN6IjL14CZ_IXhhuW1xLPj397FMep2s"),  # Bot token
-    "telegram_logging_chat_id": os.getenv("TELEGRAM_LOG_CHAT_ID","799802592"),  
-    "telegram_command_chat_id": os.getenv("TELEGRAM_COMMAND_CHAT_ID","799802592"), 
-    "allowed_user_ids": [799802592],  # Telegram user id'ler
-    
+    "telegram_token": os.getenv("TELEGRAM_BOT_TOKEN","7960510187:AAG2508opCLmJN0BlZAdT1FmL2Y7HxrK2i8"),  # Bot token
+    "telegram_logging_chat_id": os.getenv("TELEGRAM_LOG_CHAT_ID","-1002493512673"),  
+    "telegram_command_chat_id": os.getenv("TELEGRAM_COMMAND_CHAT_ID","-1002493512673"), 
+    "allowed_user_ids": [799802592,1107664588],  # Telegram user id'ler
+    "telegram_logging_chat_ids": [799802592,1107664588 ],
 
 
 

@@ -179,6 +179,8 @@ async def realtime_price_processor(ctx, symbol, strategy_mgr: StrategyManager):
         try:
             price = await ctx.price_queues[symbol].get()
             await strategy_mgr.on_price_update(symbol, price)
+            await asyncio.sleep(5)
+
         except Exception as e:
             log(f"[realtime_price_processor({symbol})] => {e}\n{traceback.format_exc()}", "error")
             await asyncio.sleep(2)

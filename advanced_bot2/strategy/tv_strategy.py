@@ -15,12 +15,16 @@ from collectors.one_minute_collector import OneMinVolCollector
 from portfolio.portfolio_manager import PortfolioManager
 from inference.rl_agent import RLAgent
 from core.trade_logger import append_trade_record, get_last_net_pnl
+import asyncio
 
 from trading_view.main_tv import generate_signals # <-- Pattern tespiti fonksiyonlarınızı (detect_elliott vb.) içeren modül
 # Yukarıda 'pattern_lib.generate_signals(df)' demek için, 
 #   en son paylaştığınız "generate_signals" kodunu oraya koyabilirsiniz.
 from datetime import datetime
+import time
 import traceback
+LAST_SUMMARY_TIME = 0  # Son summary gönderim zamanı (timestamp)
+SUMMARY_INTERVAL = 1800  # 30 dakika = 1800 sn
 
 class TradingViewStrategy(IStrategy):
     """
@@ -125,7 +129,6 @@ class TradingViewStrategy(IStrategy):
 
     async def on_price_update(self, ctx, symbol: str, price: float):
         
-      
            # 3.1) USDT equity senkron
         await self.sync_account_equity()
 
@@ -169,7 +172,8 @@ class TradingViewStrategy(IStrategy):
         senti = self.sentiment_onchain(row_main)
 
         st_score = short_sco + med_sco + long_sco + adv_score + macro_s + vol_sco + senti
-
+        
+        total_s_s= short_sco +adv_s_s +macro_s 
         # Örnek: Short/Med/Long aynı yönde ise ek puan verelim/ceza verelim.
         synergy_bonus = 0
         sum_sml = short_sco + med_sco + long_sco
@@ -187,44 +191,44 @@ class TradingViewStrategy(IStrategy):
         else:
             st.panic_count = 0
         st.panic_mode = (st.panic_count >= self.panic_confirm_bars)
-
+      
         reentry_allow = False
         if st.last_sell_time:
             mins_since = (datetime.utcnow() - st.last_sell_time).total_seconds() / 60.0
             if mins_since < self.reentry_window_bars and st.reentry_count < self.max_reentry:
                 reentry_allow = True
 
+        ##hgrail_1 = row_main.get("HolyGrailSignal_5m", 0)
+        hgrail_2 = row_main.get("HolyGrailSignal_15m", 0)
+        hgrail_3 = row_main.get("HolyGrailSignal_30m", 0)
+        hgrail_4 = row_main.get("HolyGrailSignal_1h", 0)
+        hgrail_5 = row_main.get("HolyGrailSignal_4h", 0)
+        hgrail_6 = row_main.get("HolyGrailSignal_1d", 0)
+        print(hgrail_2,hgrail_3,hgrail_4,hgrail_5,hgrail_6)
+        log_msg = (f"[{symbol}] => final_act={final_action},holygrail_=,total_score={st_score},  "
+                    f"panic={st.panic_mode}, reentry={reentry_allow}, netPnL={st.net_pnl:.2f}, RL={action}")
+        log(log_msg, "info")      
         #df_1m = ctx.df_map.get(symbol, {}).get("1m", None)
         #df_5m = ctx.df_map.get(symbol, {}).get("5m", None)
-        df_15m = ctx.df_map.get(symbol, {}).get("15m", None)
+        #df_15m = ctx.df_map.get(symbol, {}).get("15m", None)
         df_30m = ctx.df_map.get(symbol, {}).get("30m", None)
         df_1h = ctx.df_map.get(symbol, {}).get("1h", None)
         df_4h = ctx.df_map.get(symbol, {}).get("4h", None)
         df_1d = ctx.df_map.get(symbol, {}).get("1d", None)
-        if df_15m is None or df_30m is None or df_1h is None or df_4h is None:
+        if df_30m is None or df_1h is None or df_4h is None:
                 return
 
-        # MTF kararı
-        mtf_decision = await self.decide_trade_mtf_with_pattern(
-                df_15m=df_15m,
-                df_30m=df_30m,
-                df_1h=df_1h,
-                df_4h=df_4h,
-                df_1d=df_1d,
-                symbol=symbol,
-                min_score=5,
-                retest_tolerance=0.005,
-                ctx=ctx
-            )
-        final_act = mtf_decision["final_decision"]
-        retest_info = mtf_decision["retest_info"]
-
-        log_msg = (f"[{symbol}] => final={final_act}, "
-                    f"15m={mtf_decision['score_15m']},30m={mtf_decision['score_30m']},1h={mtf_decision['score_1h']},4h={mtf_decision['score_4h']},1d={mtf_decision['score_1d']}, "
-                    f"combined={mtf_decision['combined_score']}, retest={retest_info}")
-        log(log_msg, "info")
-
-        # sig_info_30m = generate_signals(
+      
+        await self.send_telegram_messages(price=price,df_30m=df_30m,df_1h=df_1h,
+                    df_4h=df_4h,
+                    df_1d=df_1d,
+                    ctx=ctx,
+                    row_main=row_main,
+                    symbol=symbol,
+                    regime=regime,
+                    force_summary=False
+                )
+          # sig_info_30m = generate_signals(
         #     df=df_30m, 
             
         #     time_frame="30m",         # 1h parametresi
@@ -297,10 +301,7 @@ class TradingViewStrategy(IStrategy):
         # else:
         #     final_action = "HOLD"
 
-
-        log_msg = (f"[{symbol}] => final_act={final_action},p_score_total={st_score},total_score={st_score},  "
-                    f"panic={st.panic_mode}, reentry={reentry_allow}, netPnL={st.net_pnl:.2f}, RL={action}")
-        # log(log_msg, "info")       
+ 
    
         if not st.has_position:
             if (not st.panic_mode) and (final_act ==  "BUY"):
@@ -551,9 +552,19 @@ class TradingViewStrategy(IStrategy):
         news = row_main.get("News_Headlines", 0.0)
         funding = row_main.get("Funding_Rate", 0.0)
         ob = row_main.get("Order_Book_Num", 0.0)
+        mvrv = row_main.get("MVRV_Z_1d", 0)
+
+        if mvrv:
+            if mvrv < -0.5:
+                cnt +=2
+            elif mvrv>0.7:
+                cnt -=2
+            
         if funding:
             if funding > 0.01:
                 cnt += 1
+            else:
+                cnt -=1
         if fgi:
             if fgi < 0.3:
                 cnt += 1
@@ -572,55 +583,237 @@ class TradingViewStrategy(IStrategy):
         return cnt
 
     def detect_panic_signal(self, row_main, symbol) -> bool:
-        cnt = 0
-        fgi = row_main.get("Fear_Greed_Index", 0.5)
-        news = row_main.get("News_Headlines", 0.0)
-        funding = row_main.get("Funding_Rate", 0.0)
-        orderbook_val = row_main.get("Order_Book_Num", 0.0)
+        """
+        Daha gerçekçi bir 'panik' sinyali için basit yaklaşım:
+        - FGI < 0.3  => Aşırı korku
+        - News < -0.2 => Negatif haber akışı
+        - Funding < 0 => Düşüş beklentisi ağır basıyor
+        - OrderBook < 0 => Satış baskısı
+        
+        2 veya daha fazla koşul karşılanırsa 'True' (panik).
+        """
+        panic_count = 0
+
+        # Metrikleri al
+        fgi = row_main.get("Fear_Greed_Index", 0.5)   # Varsayılan 0.5 (nötr)
+        news = row_main.get("News_Headlines", 0.0)   # Varsayılan 0.0 (nötr)
+        funding = row_main.get("Funding_Rate", 0.0)  # Varsayılan 0.0
+        orderbook_val = row_main.get("Order_Book_Num", 0.0)  # Varsayılan 0.0
+        
+        # FGI < 0.3 => Aşırı korku
+        if fgi < 0.3:
+            panic_count += 1
+
+        # Negatif haber akışı
+        if news < -0.2:
+            panic_count += 1
+
+        # Funding negatif => shortlar ödüyor, piyasa düşüş beklentili
         if funding:
-            if funding > 0.01:
-                cnt += 1
-        if fgi:
-            if fgi > 0.7:
-                cnt += 1
-        if news:
+            if  funding < 0:
+                panic_count += 1
 
-            if news < -0.2:
-                cnt += 1
-        if orderbook_val:
-            if orderbook_val < 0:
-                cnt += 1
-        return (cnt >= 2)
+        # Order Book negatif => net satış baskısı
+        if orderbook_val < 0:
+            panic_count += 1
 
+        # Eşik: 2 veya üzeri 'panik' sinyali olarak kabul
+        return (panic_count >= 2)
     def detect_regime(self, row_main, symbol) -> str:
-        adx_4h = row_main.get("ADX_4h", 20.0)
-       
-    
-        adx_1h = row_main.get("ADX_1h", 20.0)
-        rsi_4h = row_main.get("RSI_4h", 50.0)  # eğer 4h verisi asof merge ile df'ye eklendiyse
-        rsi_1h = row_main.get("RSI_1h", 50.0)  # eğer 1h verisi asof merge ile df'ye eklendiyse
+        """
+        1 saatlik (1h) veriler üzerinden trend, range veya yaklaşan breakout senaryolarını döndüren fonksiyon.
+        Daha büyük zaman dilimlerinden (4h, 1D) de teyit alır.
+        """
 
-        if adx_1h>25 and adx_4h:
-            if rsi_4h>55:
-                return "TREND_UP"
-            elif rsi_4h<45 and rsi_1h<45:
-                return "TREND_DOWN"
+        # =============================
+        # 1) GÖSTERGELERİ AL
+        # =============================
+        # --- 1H ---
+        adx_1h        = row_main.get("ADX_1h", 20.0)
+        rsi_1h        = row_main.get("RSI_1h", 50.0)
+        macd_1h       = row_main.get("MACD_1h", 0.0)
+        macd_signal_1h= row_main.get("MACD_Signal_1h", 0.0)
+        volume_1h     = row_main.get("Volume_1h", 0.0)
+
+        # Bollinger
+        bb_up_1h      = row_main.get("BBUp_1h", 999999)
+        bb_low_1h     = row_main.get("BBLow_1h", 0)
+        band_width    = bb_up_1h - bb_low_1h
+        mid_price     = (bb_up_1h + bb_low_1h) / 2 if (bb_up_1h + bb_low_1h) != 0 else 1
+        bb_ratio      = band_width / mid_price  # daralma için oran
+
+        # --- Daha büyük TF (4h, 1d) teyit ---
+        adx_4h = row_main.get("ADX_4h", 20.0)
+        rsi_4h = row_main.get("RSI_4h", 50.0)
+        adx_1d = row_main.get("ADX_1d", 20.0)
+        rsi_1d = row_main.get("OI_RSI_1d", 50.0)  # Burada 'OI_RSI_1d' kolonu olduğu varsayılmış
+
+        # Ek metrikler
+        funding   = row_main.get("Funding_Rate", 0.0)
+        ob        = row_main.get("Order_Book_Num", 0.0)
+        oi_1h     = row_main.get("Open_Interest_1h", 0.0)
+        cvd_1h    = row_main.get("CVD_1h", 0.0)
+
+        # =============================
+        # 2) EŞİK DEĞERLER
+        # =============================
+        ADX_STRONG       = 25
+        ADX_MEDIUM       = 20
+        ADX_VERYLOW      = 15
+
+        RSI_UPPER_MED    = 60
+        RSI_LOWER_MED    = 40
+
+        MACD_POS_THRESH  = 0.0
+        MACD_NEG_THRESH  = 0.0
+
+        VOLUME_THRESHOLD = 100_000
+
+        BB_SQUEEZE       = 0.05
+
+        FUNDING_POS_THRESH = 0.01
+        FUNDING_NEG_THRESH = -0.01
+        OB_POS_THRESH      = 0.0
+        OB_NEG_THRESH      = 0.0
+
+        OI_THRESHOLD    = 100_000
+        CVD_POS_THRESH  = 0
+        CVD_NEG_THRESH  = 0
+
+        # =============================
+        # 3) HIZLI YARDIMCI İFADELER
+        # =============================
+        macd_positive = (macd_1h > MACD_POS_THRESH and macd_1h > macd_signal_1h)
+        macd_negative = (macd_1h < MACD_NEG_THRESH and macd_1h < macd_signal_1h)
+
+        bullish_4h = (adx_4h > ADX_MEDIUM and rsi_4h > 55)
+        bullish_1d = (adx_1d > ADX_MEDIUM and rsi_1d > 55)
+        bearish_4h = (adx_4h > ADX_MEDIUM and rsi_4h < 45)
+        bearish_1d = (adx_1d > ADX_MEDIUM and rsi_1d < 45)
+
+        # =============================
+        # 4) STRONG UP / STRONG DOWN
+        # =============================
+        # STRONG UP TRENDi
+        if (adx_1h > ADX_STRONG and
+            rsi_1h > RSI_UPPER_MED and
+            macd_positive and
+            volume_1h > VOLUME_THRESHOLD):
+            
+            # OI + CVD teyidi
+            if (oi_1h > OI_THRESHOLD and cvd_1h > CVD_POS_THRESH):
+                if bullish_4h or bullish_1d:
+                    return "STRONG_UP_TREND"
+                else:
+                    return "UP_TREND"
             else:
-                return "TREND_FLAT"
+                return "UP_TREND"
+
+        # STRONG DOWN TRENDi
+        if (adx_1h > ADX_STRONG and
+            rsi_1h < RSI_LOWER_MED and
+            macd_negative and
+            volume_1h > VOLUME_THRESHOLD):
+            
+            if (oi_1h > OI_THRESHOLD and cvd_1h < CVD_NEG_THRESH):
+                if bearish_4h or bearish_1d:
+                    return "STRONG_DOWN_TREND"
+                else:
+                    return "DOWN_TREND"
+            else:
+                return "DOWN_TREND"
+
+        # =============================
+        # 5) UP / DOWN (NORMAL)
+        # =============================
+        # Orta seviye trend
+        if (adx_1h >= ADX_MEDIUM and rsi_1h > 55 and macd_positive):
+            return "UP_TREND"
+        if (adx_1h >= ADX_MEDIUM and rsi_1h < 45 and macd_negative):
+            return "DOWN_TREND"
+
+        # =============================
+        # 6) BOLLINGER KISITLI / BREAKOUT SOON
+        # =============================
+        # Bollinger dar -> (bb_ratio < 0.05), ADX düşük -> (adx_1h < 20)
+        # Funding/OB/OI/CVD'ye bakarak yön tahmini
+        if (adx_1h < ADX_MEDIUM) and (bb_ratio < BB_SQUEEZE):
+            if(funding) and ob and oi_1h :
+                bullish_break = (
+                    funding > FUNDING_POS_THRESH and
+                    ob      > OB_POS_THRESH      and
+                    oi_1h   > OI_THRESHOLD       and
+                    cvd_1h  > CVD_POS_THRESH
+                )
+                bearish_break = (
+                    funding < FUNDING_NEG_THRESH and
+                    ob      < OB_NEG_THRESH      and
+                    oi_1h   > OI_THRESHOLD       and
+                    cvd_1h  < CVD_NEG_THRESH
+                )
+
+                if bullish_break:
+                    return "BREAKOUT_SOON_UP"
+                elif bearish_break:
+                    return "BREAKOUT_SOON_DOWN"
+                else:
+                    return "BREAKOUT_SOON_UNKNOWN"
+            
+
+        # =============================
+        # 7) RANGE (YATAY)
+        # =============================
+        if adx_1h < ADX_VERYLOW:
+            return "RANGE"
+
+        # =============================
+        # 8) SON ÇARE
+        # =============================
+        return "WEAK_TREND"
+
+    def detect_regime_15m(row_main) -> str:
+        """
+        15 dakikalık zaman dilimi (15m) için basit trend / range tespiti.
+        Büyük zaman dilimi (1h) trendini de hafifçe göz önüne alır.
+        """
+
+        # 15m metrikler
+        adx_15m = row_main.get("ADX_15m", 20.0)
+        rsi_15m = row_main.get("RSI_15m", 50.0)
+
+        # Daha büyük bir timeframe'den (örn. 1h) trend teyidi almak için
+        adx_1h = row_main.get("ADX_1h", 20.0)
+        rsi_1h = row_main.get("RSI_1h", 50.0)
+
+        # Eşik değerleri (temsili)
+        ADX_THRESHOLD = 25
+        RSI_UPPER = 60
+        RSI_LOWER = 40
+
+        # 15m'de ana trend gücünü ölç
+        if adx_15m > ADX_THRESHOLD:
+            # Trend güçlü ise RSI'a bakarak yön belirle
+            if rsi_15m > RSI_UPPER:
+                # 1h trendine de bakıyoruz; eğer 1h da yüksekse "TREND_UP" daha güvenilir
+                if rsi_1h > 55 and adx_1h > 20:
+                    return "TREND_UP_STRONG"
+                else:
+                    return "TREND_UP"
+            elif rsi_15m < RSI_LOWER:
+                # 1h trendi de düşük mü?
+                if rsi_1h < 45 and adx_1h > 20:
+                    return "TREND_DOWN_STRONG"
+                else:
+                    return "TREND_DOWN"
+            else:
+                return "TREND_WEAK"  # ADX yüksek ama RSI nötr -> zayıf trend
         else:
-            # belki Boll width
-            bb_up_1h = row_main.get("BBUp_1h", 999999)
-            bb_low_1h= row_main.get("BBLow_1h", 0)
-            mid = (bb_up_1h + bb_low_1h)/2
-            band_width= bb_up_1h - bb_low_1h
-            if band_width/mid < 0.05:
-                return "BREAKOUT_SOON"
-            else:
-                return "RANGE"
+            # Trend güçlü değil -> Range ya da sıkışma
+            return "RANGE_OR_SIDEWAYS"
 
 
     def eval_short_term(self, row_s, param, symbol) -> float:
-        rsi_5m = row_s.get("RSI_5m", 50.0)
+        rsi_5m = row_s.get("OI_RSI_5m", 50.0)
         stoch_5m = row_s.get("StochK_5m", 50.0)
         sc = 0
         if rsi_5m > 60 and stoch_5m > 80:
@@ -634,6 +827,10 @@ class TradingViewStrategy(IStrategy):
         ichiA = row_m.get("Ichi_SpanA_1h", 0)
         c_m = row_m.get("Close_1h", 0)
         sc = st_dir
+         # Candle Engulf => +1/-1
+        cdl_ = row_m.get(f"CDL_ENGULFING_1h", 0)
+        if cdl_>0:
+            sc+=1
         if c_m > ichiA:
             sc += 1
         return sc
@@ -688,7 +885,7 @@ class TradingViewStrategy(IStrategy):
         return base * mult
 
 
-    async def decide_trade_mtf_with_pattern(self,df_15m,df_30m, df_1h, df_4h,df_1d, 
+    async def decide_trade_mtf_with_pattern(self,df_30m, df_1h, df_4h,df_1d, 
                      symbol, 
                      min_score=5,
                      retest_tolerance=0.05,
@@ -715,29 +912,29 @@ class TradingViewStrategy(IStrategy):
         """
 
         # 1) MTF Sinyal Çağrıları
-        sig_15m =  generate_signals(df_15m, symbol,time_frame="15m",ml_model=None,max_bars_ago=100, retest_tolerance=0.05, require_confirmed=True)
-        sig_30m =  generate_signals(df_30m, symbol,time_frame="30m",ml_model=None,max_bars_ago=100,retest_tolerance=0.05,  require_confirmed=True)
-        sig_1h  =  generate_signals(df_1h, symbol, time_frame="1h", ml_model=None,max_bars_ago=80,retest_tolerance=0.1,  require_confirmed=True)
-        sig_4h  =  generate_signals(df_4h, symbol, time_frame="4h",ml_model=None ,max_bars_ago=80, retest_tolerance=0.1, require_confirmed=True)
-        sig_1d  =  generate_signals(df_1d, symbol, time_frame="1d",ml_model=None ,max_bars_ago=90, retest_tolerance=0.1, require_confirmed=True)
+       # sig_15m = await generate_signals(df_15m, symbol,time_frame="15m",ml_model=None,max_bars_ago=100, retest_tolerance=0.005, require_confirmed=True)
+        sig_30m =  await generate_signals(df_30m, symbol,time_frame="30m",ml_model=None,max_bars_ago=150,retest_tolerance=0.02,  require_confirmed=True)
+        sig_1h  =  await generate_signals(df_1h, symbol, time_frame="1h", ml_model=None,max_bars_ago=150,retest_tolerance=0.05,  require_confirmed=True)
+        sig_4h  =  await generate_signals(df_4h, symbol, time_frame="4h",ml_model=None ,max_bars_ago=300, retest_tolerance=0.05, require_confirmed=True)
+        sig_1d  =  await generate_signals(df_1d, symbol, time_frame="1d",ml_model=None ,max_bars_ago=300, retest_tolerance=0.05, require_confirmed=True)
 
         #print(sig_30m)
-        score_15m = sig_15m["score"]
+       # score_15m = sig_15m["score"]
         score_30m = sig_30m["score"]
         score_1h  = sig_1h["score"]
         score_4h  = sig_4h["score"]
         score_1d = sig_1d["score"]
 
-        print("15m results:",sig_15m["pattern_trade_levels"])
-        print("30m results:",sig_30m["pattern_trade_levels"])
-        print("1h results:",sig_1h["pattern_trade_levels"])
-        print("4h results:",sig_4h["pattern_trade_levels"])
-        print("1d results:",sig_1d["pattern_trade_levels"])
+        #print("15m results:",sig_15m["pattern_trade_levels"])
+        #print("30m results:",sig_30m["pattern_trade_levels"])
+        #print("1h results:",sig_1h["pattern_trade_levels"])
+       # print("4h results:",sig_4h["pattern_trade_levels"])
+        #print("1d results:",sig_1d["pattern_trade_levels"])
 
 
         # MTF kombine skor (basit örnek => 30m + 1h + 4h)
         # Dilerseniz 30m'ye 1x, 1h'ye 1.5x, 4h'ye 2x ağırlık verebilirsiniz.
-        combined_score = score_15m + score_30m + score_1h*2 + score_4h*3
+        combined_score =  score_30m + score_1h*2 + score_4h*3
 
         # Basit: eğer combined_score >= min_score => BUY, <= -min_score => SELL, else HOLD
         final_decision = "HOLD"
@@ -753,16 +950,304 @@ class TradingViewStrategy(IStrategy):
         
         return {
             "final_decision": final_decision,
-            "score_15m": score_15m,
+           # "score_15m": score_15m,
 
             "score_30m": score_30m,
             "score_1h":  score_1h,
             "score_4h":  score_4h,
             "score_1d": score_1d,
-            "patterns_30m": sig_30m["patterns"],
-            "patterns_1h":  sig_1h["patterns"],
-            "patterns_4h":  sig_4h["patterns"],
+            
+            #"patterns_15m": sig_15m["pattern_trade_levels"],
+
+            "patterns_30m": sig_30m["pattern_trade_levels"],
+            "patterns_1h":  sig_1h["pattern_trade_levels"],
+            "patterns_4h":  sig_4h["pattern_trade_levels"],
+            "patterns_1d":  sig_1d["pattern_trade_levels"],
+
             "retest_info": retest_data,
             "combined_score": combined_score
         }
 
+    async def format_pattern_results(self, row_main,mtf_dict: dict) -> str:
+        """
+        mtf_dict şu formatta bir sözlüktür:
+        {
+        "15m": {
+            "double_top": [ {...}, {...} ],
+            "triple_top_advanced": [ {...}, ...],
+            ...
+        },
+        "30m": { ... },
+        "1h": { ... },
+        "4h": { ... },
+        "1d": { ... }
+        }
+
+        Her pattern listesi, 'detect_all_patterns_v2' veya 'generate_signals' çıktısındaki
+        'patterns' dict'ine benzer:
+        [
+            {
+            "entry_price": 3053.51,
+            "stop_loss": 3215.23,
+            "take_profit": 2954.83,
+            "direction": "SHORT",
+            "pattern_raw": {
+                "confirmed": True,
+                "pattern": "double_top",
+                ...
+            }
+            },
+            ...
+        ]
+
+        Döndürdüğümüz metin => multiline string (Telegram'a gönderilecek).
+        """
+        lines = []
+      
+      
+        # Sadece bu TF'leriniz varsa sabit olarak tanımlayabilirsiniz.
+        # Yoksa sorted(mtf_dict.keys()) diyerek de sıralayabilirsiniz.
+        timeframes = ["30m","1h","4h","1d"]
+        
+        for tf in timeframes:
+            # Her timeframe dictionary'sini al
+            tf_data = mtf_dict.get(tf, None)
+            if not tf_data:
+                # Pattern listesi yoksa / skip
+                lines.append(f"\n--- {tf} => No pattern data ---")
+                continue
+
+            lines.append(f"\n--- {tf} Pattern Results ---")
+
+            # tf_data: ör. { "double_top": [...], "double_bottom": [...], ... }
+            # Her pattern ismi ve listesini dolaşalım:
+            for pattern_name, p_list in tf_data.items():
+                if not p_list:
+                    # Boş liste => bu pattern bulunmamış
+                    continue
+
+                # Kaç adet pattern bulundu
+                lines.append(f"* {pattern_name} => {len(p_list)} adet")
+
+                # Tek tek parse
+                for idx, pat in enumerate(p_list, start=1):
+                    ep   = pat.get("entry_price")
+                    sl   = pat.get("stop_loss")
+                    tp   = pat.get("take_profit")
+                    dire = pat.get("direction", "N/A")
+
+                    # pattern_raw içinden ek bilgi istersek:
+                    raw  = pat.get("pattern_raw", {})
+                    conf = raw.get("confirmed", False)
+                    patn = raw.get("pattern", "?")
+
+                    # Format -> 2 decimal
+                    ep_s  = f"{ep:.2f}" if ep else "N/A"
+                    sl_s  = f"{sl:.2f}" if sl else "N/A"
+                    tp_s  = f"{tp:.2f}" if tp else "N/A"
+
+                    lines.append(
+                        f"   [{idx}] Dir={dire}, Entry={ep_s}, Stop={sl_s}, TP={tp_s}, "
+                        f"Confirmed={conf}, name={patn}"
+                    )
+          
+        final_text = "\n".join(lines)
+        if not final_text.strip():
+            final_text = "No pattern results found."
+        return final_text
+   
+    # -------------------------------------------------------
+    # 1) Pattern Puanlamasını Yapan Fonksiyon
+    # -------------------------------------------------------
+    def find_close_patterns(self,results_dict: dict, current_price, lower_threshold=5, upper_threshold=10):
+        """
+        results_dict   : (dict)  Pattern verilerinin tutulduğu sözlük
+        current_price  : (float) Anlık gelen coin fiyatı
+        lower_threshold: (float) Yüzde olarak alt eşik (default=5)
+        upper_threshold: (float) Yüzde olarak üst eşik (default=10)
+        
+        TP değeri ile current_price arasındaki yüzdesel farkın 
+        lower_threshold <= fark <= upper_threshold olduğu pattern’leri
+        puanlayarak döndürür.
+        """
+        close_patterns = []
+
+        for timeframe, pattern_types in results_dict.items():
+            for pattern_type, pattern_list in pattern_types.items():
+                for pattern in pattern_list:
+                    direction = pattern.get("direction")
+                    tp = pattern.get("take_profit")
+
+                    if tp is not None:
+                        fark_yuzdesi = abs(tp - current_price) / current_price * 100
+                        if lower_threshold <= fark_yuzdesi <= upper_threshold:
+                            # Örnek puan hesabı (dilediğiniz gibi değiştirebilirsiniz)
+                            puan = round(upper_threshold - fark_yuzdesi, 2)
+                            
+                            close_patterns.append({
+                                "timeframe": timeframe,
+                                "pattern_type": pattern_type,
+                                "direction": direction,
+                                "take_profit": tp,
+                                "current_price": current_price,
+                                "fark_yuzdesi": round(fark_yuzdesi, 2),
+                                "puan": puan
+                            })
+        return close_patterns
+
+
+    # -------------------------------------------------------
+    # 2) Telegram Mesajlarını Gönderen Fonksiyon
+    #    -> Her 30 dakikada bilgi mesajı (summary)
+    #    -> Pattern skoru varsa alert mesajı
+    # -------------------------------------------------------
+    #  30 dakikada bir "bilgi mesajı" atıp atmadığımızı kontrol için
+    #  global ya da class seviyesinde sakladığımız bir değişken kullanıyoruz:
+
+    async def send_telegram_messages(self,price,
+                                     df_30m,df_1h,
+                    df_4h,
+                    df_1d, ctx: SharedContext, row_main, symbol, regime, force_summary=False):
+        """
+        force_summary=True  -> Bilgi mesajını her halükarda gönder.
+        force_summary=False -> Son gönderimden bu yana 30 dk geçtiyse gönder, yoksa gönderme.
+        
+        1) Bilgi (Özet) Mesajı (Summary):
+        - Korku Endeksi, Fonlama Oranı, vb. gibi genel bilgileri içerir.
+        - 30 dakikada bir veya force_summary=True ise gönderilir.
+        2) Pattern Alert Mesajı:
+        - 'find_close_patterns' ile elde edilen listede bir şey varsa gönderilir.
+        - Yoksa alert mesajı gönderilmez.
+        """
+        global LAST_SUMMARY_TIME
+        results_dict={}
+        #print(LAST_SUMMARY_TIME)
+        # Telegram objesini al
+        telegram_app = getattr(ctx, "telegram_app", None)
+        if telegram_app is None:
+            return  # Telegram app tanımlı değilse hiçbir şey yapma
+
+        chat_id = ctx.config.get("telegram_logging_chat_id", None)
+        if not chat_id:
+            return  # chat_id yoksa çık
+        #print(chat_id)
+        now = time.time()
+        need_summary = False
+
+        # force_summary=True ise veya 30 dakikadan fazla geçmişse summary mesajı at
+        if force_summary or (now - LAST_SUMMARY_TIME) > SUMMARY_INTERVAL:
+            need_summary = True
+
+        # row_main içindeki değerleri örnek olarak alalım
+        fgi = row_main.get("Fear_Greed_Index", 0.5)   # Korku endeksi
+        news = row_main.get("News_Headlines", 0.0)    # Haberler
+        funding = row_main.get("Funding_Rate", 0.0)   # Fonlama oranı
+        ob = row_main.get("Order_Book_Num", 0.0)      # Emir defteri dengesi
+        oi_1h = row_main.get("Open_Interest", 0.0)    # 1 saatlik Açık Pozisyon
+        close_30m = row_main.get("Close_30m", 0.0)    # Son 30 dak. kapanış
+
+        # Basit yorumlar/etiketler
+        ob_result = "Satıcı Ağırlıklı" if ob <= 0 else "Alıcı Ağırlıklı"
+        
+        if funding > 0.01:
+            funding_result = "Negatif"
+        else:
+            funding_result = "Pozitif"
+
+        if fgi < 0.3:
+            fgi_result = "İyi"
+        elif fgi > 0.7:
+            fgi_result = "Kötü"
+        else:
+            fgi_result = "Nötr"
+
+        if news < -0.2:
+            news_result = "Kötü"
+        elif news > 0.2:
+            news_result = "İyi"
+        else:
+            news_result = "Nötr"
+
+        # 1) Summary Mesajı
+        if need_summary:
+              # MTF kararı
+            mtf_decision = await self.decide_trade_mtf_with_pattern(
+                    #df_15m=df_15m,
+                    df_30m=df_30m,
+                    df_1h=df_1h,
+                    df_4h=df_4h,
+                    df_1d=df_1d,
+                    symbol=symbol,
+                    min_score=5,
+                    retest_tolerance=0.005,
+                    ctx=ctx
+                )
+            final_act = mtf_decision["final_decision"]
+            retest_info = mtf_decision["retest_info"]
+            
+            log_msg = (f"[{symbol}] => final={final_act}, "
+                        f"30m={mtf_decision['score_30m']},1h={mtf_decision['score_1h']},4h={mtf_decision['score_4h']},1d={mtf_decision['score_1d']}, "
+                        f"combined={mtf_decision['combined_score']}, retest={retest_info}")
+            log(log_msg, "info")
+            try:
+                txt_summary = (
+                f"Symbol: {symbol}\n"
+                f"İndikatör (1 saat): {regime}\n"
+                f"Son 30 dak. Kapanış: {close_30m}\n"
+                f"Korku Endeksi: {fgi_result} ({fgi:.2f})\n"
+                f"Haber Skoru: {news_result} ({news:.2f})\n"
+                f"Fonlama Oranı: {funding:.4f} ({funding_result})\n"
+                f"Emir Defteri: {ob:.2f} ({ob_result})\n"
+                f"1 Saatlik Açık Pozisyon: {oi_1h}\n"
+            )
+                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_summary)
+                #LAST_SUMMARY_TIME = now  # son gönderim zamanını güncelle
+                await asyncio.sleep(5)
+
+        # 2) Pattern Kontrolü
+        # -------------------------------------------------------------------
+        # mtf_decision içinden pattern bilgilerini çekip, results_dict oluşturma
+                results_dict = {
+                    "30m": mtf_decision["patterns_30m"],
+                    "1h":  mtf_decision["patterns_1h"],
+                    "4h":  mtf_decision["patterns_4h"],
+                    "1d":  mtf_decision["patterns_1d"]
+                }
+            
+                txt_report = await self.format_pattern_results(row_main, results_dict)
+
+                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_report)
+                LAST_SUMMARY_TIME = now  # son gönderim zamanını güncelle
+                log(f"Message sent to Telegram:", "info")
+                await asyncio.sleep(5)
+
+            except Exception as e:
+                    # log fonksiyonu projenizde farklı olabilir, burada örnek.
+                log(f"Telegram send error (Summary): {e}", "error")
+
+        # Örnek olarak current_price = close_30m kabul ediyoruz
+        print(price)
+        # Pattern’lerden puanlı olanları bul
+        close_pattern_list = self.find_close_patterns(results_dict, price)     
+       
+        # 3) Alert Mesajı (Puanlı pattern varsa)
+        if close_pattern_list:
+            alert_text = "ALERT: TP değerine %5 - %10 yakın pattern'ler:\n\n"
+            for cp in close_pattern_list:
+                alert_text += (
+                    f"- PRICE: {price}\n"
+
+                    f"- Timeframe: {cp['timeframe']}\n"
+                    f"  Pattern: {cp['pattern_type']}\n"
+                    f"  Yön: {cp['direction']}\n"
+                    f"  TP: {cp['take_profit']}\n"
+                    f"  Fark Yüzdesi: {cp['fark_yuzdesi']}%\n"
+                    f"  Puan: {cp['puan']}\n\n"
+                )
+            try:
+                await telegram_app.bot.send_message(chat_id=chat_id, text=alert_text)
+            except Exception as e:
+                log(f"Telegram send error (Alert): {e}", "error")
+        # Puanlı pattern yoksa alert mesajı gönderilmez.
+
+ 

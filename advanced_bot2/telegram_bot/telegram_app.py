@@ -5,7 +5,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler
 from .handlers import (
     start_command, status_command, stop_command,
     addsymbol_command, positions_command, pnl_command,
-    pause_command, resume_command
+    pause_command, resume_command,setsymbol_command
 )
 
 class TelegramBotApp:
@@ -28,7 +28,7 @@ class TelegramBotApp:
         self.app.add_handler(CommandHandler("pnl", pnl_command))
         self.app.add_handler(CommandHandler("pause", pause_command))
         self.app.add_handler(CommandHandler("resume", resume_command))
-        self.app.add_handler(CommandHandler("resume", pnl_command))
+        self.app.add_handler(CommandHandler("setsymbol", setsymbol_command))
 
         # --- BURAYA YENİ KOMUT EKLEYECEĞİZ ---
         # (Aşağıda gösteriliyor)
@@ -36,11 +36,15 @@ class TelegramBotApp:
         await self.app.initialize()
         await self.app.start()
         await self.app.updater.start_polling()
-
+        
+        
+        # ÖNEMLİ EKLEME:
+        self.shared_ctx.telegram_app = self.app  # <--- BU SATIR
+       
+       
         # Manuel while => eğer wait_for_stop yoksa
         while not getattr(self.shared_ctx,"stop_requested",False):
             await asyncio.sleep(1)
-
         await self.app.updater.stop()
         await self.app.stop()
         await self.app.shutdown()

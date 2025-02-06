@@ -1,8 +1,8 @@
 
-from  trading_view.patterns.all_patterns import optimize_parameters,detect_all_patterns_v2 ,PivotScanner,indicator_checks
+from  trading_view.patterns.all_patterns import detect_all_patterns_v2,run_detection_with_filters ,PivotScanner,indicator_checks
 from trading_view.ml_model import PatternEnsembleModel
 import pandas as pd
-from trading_view.helper import final_score,extract_pattern_trade_levels_filtered,measure_pattern_distances,filter_confirmed_within_tolerance
+from trading_view.helper import filter_trades_with_indicators,final_score,extract_pattern_trade_levels_filtered,measure_pattern_distances,filter_confirmed_within_tolerance
 
 # Log örneği
 try:
@@ -38,7 +38,25 @@ TIMEFRAME_CONFIGS = {
                 "check_rsi_macd": False,
                 "check_retest": False,
                 "retest_tolerance": 0.01
-            },
+            },"triple_top_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
+
+"triple_bottom_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
             "inverse_headshoulders": {
                 "left_bars": 10,
                 "right_bars": 10,
@@ -117,7 +135,7 @@ TIMEFRAME_CONFIGS = {
                 "max_iter": 10
             },
             "gann": {
-                "use_ultra": False
+        "use_ultra": True, "sq9_variant": "sqrt_plus_360", "sq9_steps": 5, "w24_variant": "typeB", "w24_steps": 5            
             }
         }
     },
@@ -142,7 +160,25 @@ TIMEFRAME_CONFIGS = {
                 "check_rsi_macd": False,
                 "check_retest": True,
                 "retest_tolerance": 0.01
-            },
+            },"triple_top_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
+
+"triple_bottom_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
             "inverse_headshoulders": {
                 "left_bars": 15,
                 "right_bars": 15,
@@ -221,7 +257,7 @@ TIMEFRAME_CONFIGS = {
                 "max_iter": 10
             },
             "gann": {
-                "use_ultra": False
+        "use_ultra": True, "sq9_variant": "sqrt_plus_360", "sq9_steps": 5, "w24_variant": "typeB", "w24_steps": 5            
             }
         }
     },
@@ -246,7 +282,25 @@ TIMEFRAME_CONFIGS = {
                 "check_rsi_macd": False,
                 "check_retest": True,
                 "retest_tolerance": 0.01
-            },
+            },"triple_top_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
+
+"triple_bottom_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
             "inverse_headshoulders": {
                 "left_bars": 20,
                 "right_bars": 20,
@@ -327,7 +381,7 @@ TIMEFRAME_CONFIGS = {
                 "max_iter": 10
             },
             "gann": {
-                "use_ultra": False
+        "use_ultra": True, "sq9_variant": "sqrt_plus_360", "sq9_steps": 5, "w24_variant": "typeB", "w24_steps": 5            
             }
         }
     },
@@ -352,7 +406,25 @@ TIMEFRAME_CONFIGS = {
                 "check_rsi_macd": False,
                 "check_retest": True,
                 "retest_tolerance": 0.01
-            },
+            },"triple_top_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
+
+"triple_bottom_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
             "inverse_headshoulders": {
                 "left_bars": 30,
                 "right_bars": 30,
@@ -433,7 +505,7 @@ TIMEFRAME_CONFIGS = {
                 "max_iter": 10
             },
             "gann": {
-                "use_ultra": False
+        "use_ultra": True, "sq9_variant": "sqrt_plus_360", "sq9_steps": 5, "w24_variant": "typeB", "w24_steps": 5            
             }
         }
     },
@@ -458,7 +530,25 @@ TIMEFRAME_CONFIGS = {
                 "check_rsi_macd": False,
                 "check_retest": True,
                 "retest_tolerance": 0.01
-            },
+            },"triple_top_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
+
+"triple_bottom_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
             "inverse_headshoulders": {
                 "left_bars": 30,
                 "right_bars": 30,
@@ -564,7 +654,25 @@ TIMEFRAME_CONFIGS = {
                 "check_rsi_macd": False,
                 "check_retest": True,
                 "retest_tolerance": 0.01
-            },
+            },"triple_top_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
+
+"triple_bottom_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
             "inverse_headshoulders": {
                 "left_bars": 35,
                 "right_bars": 35,
@@ -645,7 +753,7 @@ TIMEFRAME_CONFIGS = {
                 "max_iter": 10
             },
             "gann": {
-                "use_ultra": False
+        "use_ultra": True, "sq9_variant": "sqrt_plus_360", "sq9_steps": 5, "w24_variant": "typeB", "w24_steps": 5            
             }
         }
     },
@@ -670,7 +778,25 @@ TIMEFRAME_CONFIGS = {
                 "check_rsi_macd": False,
                 "check_retest": True,
                 "retest_tolerance": 0.01
-            },
+            },"triple_top_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
+
+"triple_bottom_advanced": {
+    "tolerance": 0.01,
+    "min_distance_bars": 20,
+    "volume_check": True,
+    "volume_col_factor": 0.8,
+    "neckline_break": True,
+    "check_retest": True,
+    "retest_tolerance": 0.01
+},
             "inverse_headshoulders": {
                 "left_bars": 25,
                 "right_bars": 25,
@@ -751,7 +877,11 @@ TIMEFRAME_CONFIGS = {
                 "max_iter": 10
             },
             "gann": {
-                "use_ultra": False
+             
+             
+        "use_ultra": True, "sq9_variant": "sqrt_plus_360", "sq9_steps": 5, "w24_variant": "typeB", "w24_steps": 5            
+            
+            
             }
         }
     }
@@ -843,7 +973,7 @@ def build_zigzag_wave(pivots):
 ##############################################################################
 # 6) SIGNAL ENGINE (generate_signals) => v2 (EK PATTERNLER DAHİL)
 ##############################################################################
-def generate_signals(
+async def generate_signals(
     df: pd.DataFrame,
     symbol:str = "BTCUSDT",
     time_frame: str = "1m",
@@ -900,15 +1030,21 @@ def generate_signals(
     #optimize_parameters(df=df,time_frame: str="1m", param_grid: dict = None)
     pivots = scanner.find_pivots()
     wave   = build_zigzag_wave(pivots)
-     
+    
+    filename = f"{symbol.lower()}.json"
+
     # 2) Tüm pattern tespiti (v2) => Cup&Handle, Flag, Channel, Gann vs. dahil
-    patterns = detect_all_patterns_v2(
-        pivots,
-        wave,
-        df=df,
+    patterns = await detect_all_patterns_v2(
+        
+        df=df,symbol=symbol,
         time_frame=time_frame,
-        config=pattern_conf
+        filename=filename,
+            scoring_fn = None
+
+      
     )
+    
+   # print(patterns)
 
     # 3) ML tahmini (opsiyonel)
     ml_label= None
@@ -925,6 +1061,8 @@ def generate_signals(
         check_idx = len(df)-1
         ind_res = indicator_checks(df, check_idx, time_frame=time_frame)
         rsi_macd_signal = ind_res["signal"]
+    # 4) RSI/MACD filtrelemesi
+ 
 
    
     #retest_tolerance=0.05
@@ -938,13 +1076,46 @@ def generate_signals(
     # Örnek dönüş: { "inverse_headshoulders": [0,1], "double_bottom": [0], ... }
 
     # 5) Yalnızca bu filtreye uyan pattern’lar için trade seviyeleri
-    trade_levels = extract_pattern_trade_levels_filtered(patterns, confirmed_map, current_price)
- 
-    results=final_score(df,patterns,time_frame,
-                       check_rsi_macd,v_spike,
-                       rsi_macd_signal,b_up,b_down,
-                       ml_label,max_bars_ago,wave,
-                       require_confirmed,trade_levels ) 
-    results["distances"]=distances
+    trades = extract_pattern_trade_levels_filtered(
+        patterns, 
+        confirmed_map=confirmed_map,
+        df=df,
+        time_frame=time_frame,
+        atr_period=14,
+        atr_sl_multiplier=1.0,
+        atr_tp_multiplier=1.0,
+        default_break_offset=0.001
+    )
+    #print(trades)
+   # 4) RSI/MACD filtrelemesi
+    filtered_trades = filter_trades_with_indicators(
+        trades,
+        df,
+        time_frame,
+        rsi_col=get_col_name("RSI", time_frame),
+        macd_col=get_col_name("MACD", time_frame),
+        macd_signal_col=get_col_name("MACDSig", time_frame),
+    )
+    #print("Filtered Trades =>",filtered_trades)
+    #for pat_name, tlist in filtered_trades.items():
+        #for t in tlist:
+            #print(pat_name, t)
 
-    return results
+    # 5) final_score örneği
+    score_result = final_score(
+        df=df,
+        patterns=patterns,
+        time_frame="1m",
+        check_rsi_macd=True,   # RSI/MACD skorunu -1 düşürecek mi, vb.
+        v_spike=False,
+        rsi_macd_signal=True,  # Basit bir parametre, True => skoru düşürmeyecek
+        b_up=False,
+        b_down=False,
+        ml_label=0,
+        max_bars_ago=10,
+        wave=[],
+        require_confirmed=True,
+        trade_levels=filtered_trades
+    )
+    return score_result
+    #print("Final Score =>", score_result)

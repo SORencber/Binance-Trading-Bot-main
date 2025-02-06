@@ -9,7 +9,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /start => hoşgeldin mesajı
     """
-    await update.message.reply_text("Merhaba! Komutlar: /status, /stop, /addsymbol SYM, /positions, /pnl")
+    await update.message.reply_text("Merhaba! Komutlar: /status, /pause, /resume, /setsymbol SYM(coin ismi yazarak, coin icin bilgi alirsiniz.)  , /addsymbol SYM, /positions, /pnl")
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -27,6 +27,7 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Sadece authorized user
     user_id = update.effective_user.id
     allowed = shared_ctx.config.get("allowed_user_ids", [])
+    print("sesver",update.effective_chat.id)
 
     log(f"DEBUG /stop => user_id={user_id}, allowed={allowed}", "info")
 
@@ -63,6 +64,37 @@ async def addsymbol_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Symbol {new_sym} added.")
     else:
         await update.message.reply_text(f"{new_sym} already in list.")
+# telegram_bot/handlers.py
+async def setsymbol_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    shared_ctx = context.application.bot_data["shared_context"]
+    user_id = update.effective_user.id
+    if user_id not in shared_ctx.config.get("allowed_user_ids",[]):
+        await update.message.reply_text("Unauthorized.")
+        return
+
+    tokens = update.message.text.split()
+    if len(tokens) < 2:
+        await update.message.reply_text("Usage: /setsymbol SYMBOL")
+        return
+    new_sym = tokens[1].upper()
+    await update.message.reply_text(f"Symbol {new_sym} added.")
+
+    # 1) (Opsiyonel) Trading'i durdur
+    from main import stop_trading, start_trading  # Örnek, proje yapınıza göre
+    await stop_trading(shared_ctx)
+
+    await update.message.reply_text("Trading tasks paused.")
+
+    # 2) Symbol listeyi temizle => yeni sembol ekle
+    shared_ctx.config["symbols"] = [new_sym]
+    if new_sym in shared_ctx.config["symbols"]:
+        await update.message.reply_text(f"{new_sym} is already in the list.")
+        return
+    # 3) Tekrar trading başlat
+    await start_trading(shared_ctx)
+    await update.message.reply_text("Trading tasks resumed.")
+
+    await update.message.reply_text(f"Symbol changed to {new_sym}, tasks restarted.")
 
 async def positions_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """

@@ -318,6 +318,140 @@ def add_oi_indicators(
 
 
 
+def detect_holy_grail_signals(df: pd.DataFrame, adx_threshold=30, prefix="_1h") -> pd.DataFrame:
+    df = df.copy()
+    # Sinyal kolonunu oluşturuyoruz
+    sigcol = "HolyGrailSignal"
+    df[sigcol] = 0  # Tüm satırlara 0 atandı
+
+    # Son barı alalım
+    last_idx = df.index[-1]
+    last_bar = df.iloc[-1]
+
+    # İlgili değerleri alalım
+    adx_val   = last_bar.loc[f"ADX{prefix}"]
+    plus_di   = last_bar.loc[f"DI_plus{prefix}"]
+    minus_di  = last_bar.loc[f"DI_minus{prefix}"]
+    ema_val   = last_bar.loc[f"EMA_20{prefix}"]
+    c_close   = last_bar.loc["Close"]
+    c_low     = last_bar.loc["Low"]
+    c_high    = last_bar.loc["High"]
+
+    #print(adx_val, adx_threshold, plus_di, minus_di, c_close, ema_val, c_high, c_low)
+
+    # Eğer +DI > -DI ise up-trend
+    if plus_di > minus_di:
+        # Eğer c_low <= EMA20 ve c_close > EMA20 ise alış sinyali
+        if (c_low <= ema_val) and (c_close > ema_val):
+            df.at[last_idx, sigcol] = +1
+    else:
+        # Eğer -DI > +DI ise down-trend
+        if (c_high >= ema_val) and (c_close < ema_val):
+            df.at[last_idx, sigcol] = -1
+
+    return df
+
+def simple_holy_grail_stoploss(row, prefix="_1h", multiplier=1.5):
+    """
+    Stop = cClose +/- ATR * multiplier
+    """
+    sig = row[f"HolyGrailSignal"]
+    c_close = row[f"Close"]
+    atr_val = row[f"ATR{prefix}"]
+    if sig==+1:
+        return c_close - atr_val*multiplier
+    elif sig==-1:
+        return c_close + atr_val*multiplier
+    return None
+
+def holy_grail_all_timeframes(df: pd.DataFrame, prefix: str = "_1h") -> pd.DataFrame:
+    """
+    Verilen DataFrame üzerinde Holy Grail sinyallerini hesaplar.
+    
+    Adımlar:
+      1) detect_holy_grail_signals fonksiyonu ile temel sinyal (HolyGrailSignal) hesaplanır.
+      2) simple_holy_grail_stoploss fonksiyonu kullanılarak ATR tabanlı stop-loss sütunu eklenir.
+      3) prefix değerine göre kullanılacak RSI sütunu belirlenir.
+      4) Son bardaki (örneğin, df.iloc[-1]) HolyGrailSignal değeri ve RSI değeri kullanılarak
+         "HolyGrail_FinalSignal" sütunu güncellenir.
+           - Eğer sinyal +1 (bullish) ise ve ilgili RSI değeri (örneğin <35) teyit ediyorsa final sinyal +1,
+             aksi halde 0 (hold).
+           - Eğer sinyal -1 (bearish) ise ve ilgili RSI değeri (örneğin >60) teyit ediyorsa final sinyal -1,
+             aksi halde 0.
+      5) Fonksiyon güncellenmiş DataFrame’i döner.
+    
+    Parametreler:
+      - df: İşlenecek fiyat ve indikatör verilerini içeren DataFrame.
+      - prefix: İlgili zaman dilimini temsil eden ek (örn. "_1h", "_4h", "_1d" vs.).
+    
+    Dönüş:
+      - df: "HolyGrail_StopLoss" ve "HolyGrail_FinalSignal" sütunlarını içeren DataFrame.
+    """
+    # 1) Önce temel Holy Grail sinyalini hesaplayalım
+    df = detect_holy_grail_signals(df, adx_threshold=30, prefix=prefix)
+    
+    # 2) Stop-loss sütununu ekleyelim (örneğin, multiplier=1.5)
+    holy_stop_col = "HolyGrail_StopLoss"
+    df[holy_stop_col] = df.apply(
+        lambda row: simple_holy_grail_stoploss(row, prefix=prefix, multiplier=1.5),
+        axis=1
+    )
+    
+    # 3) Hangi RSI sütununu kullanacağımızı belirleyelim
+    # (Burada örnek olarak, 1h için 15m, 4h için 1h, 1d için 4h, 30m için 5m ve 15m için 5m RSI kullanılıyor.
+    #  Gerekirse ayarlayabilirsiniz.)
+    if prefix == "_1h":
+        rsi_col = "RSI_15m"
+    elif prefix == "_4h":
+        rsi_col = "RSI_1h"
+    elif prefix == "_1d":
+        rsi_col = "RSI_4h"
+    elif prefix == "_30m":
+        rsi_col = "RSI_5m"
+    elif prefix == "_15m":
+        rsi_col = "RSI_5m"
+    else:
+        rsi_col = "RSI_1m"
+    
+    # 4) Final sinyal sütununu oluşturup, tüm satırlara önce 0 değeri atayalım
+    df["HolyGrail_FinalSignal"] = 0
+
+    # Son barın indeksini alalım
+    last_idx = df.index[-1]
+    # Temel sinyalin sütun adı (detect_holy_grail_signals fonksiyonunda oluşturulmuş)
+    sig_col = "HolyGrailSignal"
+    
+    # Son bardaki temel sinyal değerini alalım (örn. +1 veya -1)
+    sig_val = df.at[last_idx, sig_col]
+
+    # Final sinyal için koşullar:
+    if sig_val == 1:
+        # Bullish senaryosu: Eğer ilgili RSI sütunu mevcutsa ve son satırdaki RSI değeri < 35 ise
+        if rsi_col in df.columns:
+            rsi_val = df.at[last_idx, rsi_col]
+            if rsi_val < 35:
+                df.at[last_idx, "HolyGrail_FinalSignal"] = 1
+            else:
+                df.at[last_idx, "HolyGrail_FinalSignal"] = 0
+        else:
+            df.at[last_idx, "HolyGrail_FinalSignal"] = 1
+    elif sig_val == -1:
+        # Bearish senaryosu: Eğer ilgili RSI sütunu mevcutsa ve son satırdaki RSI değeri > 60 ise
+        if rsi_col in df.columns:
+            rsi_val = df.at[last_idx, rsi_col]
+            if rsi_val > 60:
+                df.at[last_idx, "HolyGrail_FinalSignal"] = -1
+            else:
+                df.at[last_idx, "HolyGrail_FinalSignal"] = 0
+        else:
+            df.at[last_idx, "HolyGrail_FinalSignal"] = -1
+    else:
+        # Sinyal 0 veya başka bir durum ise final sinyal 0 (hold) olarak bırakılır.
+        df.at[last_idx, "HolyGrail_FinalSignal"] = 0
+
+    return df
+
+
 ########################################
 # 3) HER TF İÇİN DEVASA FONKSİYONLAR
 ########################################
@@ -330,17 +464,31 @@ def calculate_indicators_1m(df: pd.DataFrame) -> pd.DataFrame:
     """
     cfg = INDICATOR_CONFIG["1m"]
     df = df.copy()
+    
+    df['Volume'] = (
+    df['Volume']
+    .astype(str)
+    # Remove everything that isn't digits or a decimal point:
+    .str.replace(r'[^\d.]+', '', regex=True)
+    .astype(float)
+)
+    open_= df["Open"]
+    df['Close'] = (
+    df['Close']
+    .astype(str)
+    .str.replace(r'[^\d.]+', '', regex=True)
+    .astype(float)
+)
     high = df["High"]
     low  = df["Low"]
     close= df["Close"]
     vol  = df["Volume"]
-    open_= df["Open"]
     # df["Open_1m"] =df["Open"]
     # df["Close_1m"] =df["Close"]
     # df["High_1m"] =df["High"]
     # df["Low_1m"] =df["Low"]
     # df["Volume_1m"] =df["Volume"]
-
+    
 
 
 
@@ -421,7 +569,7 @@ def calculate_indicators_1m(df: pd.DataFrame) -> pd.DataFrame:
     df["CMO_1m"] = talib.CMO(close, timeperiod=14)
 
     # OBV, CMF
-    df["OBV_1m"] = talib.OBV(close, vol)
+    df["OBV_1m"] = talib.OBV(df["Close"], df["Volume"])
     cmf_val = ((2*close - high - low)/(high - low +1e-9)) * vol
     df["CMF_1m"] = cmf_val.rolling(window=20).mean()
 
@@ -634,6 +782,7 @@ def calculate_indicators_15m(df: pd.DataFrame) -> pd.DataFrame:
         20,
         2,
          10)
+    
     # RSI, ADX, ATR
     df["RSI_15m"] = talib.RSI(close, timeperiod=cfg["RSI"])
     df["ADX_15m"] = talib.ADX(high, low, close, timeperiod=cfg["ADX"])
@@ -756,6 +905,8 @@ def calculate_indicators_15m(df: pd.DataFrame) -> pd.DataFrame:
     df['SMA_20_15m'] = df['Close'].rolling(window=20).mean()
     df['SMA_50_15m'] = df['Close'].rolling(window=50).mean()
     df['EMA_20_15m'] = df['Close'].ewm(span=20, adjust=False).mean()
+    holy_grail_all_timeframes(df,"_15m")
+
     return df
 
 
@@ -780,7 +931,7 @@ def calculate_indicators_30m(df: pd.DataFrame) -> pd.DataFrame:
     df["RSI_30m"] = talib.RSI(close, timeperiod=cfg["RSI"])
     df["ADX_30m"] = talib.ADX(high, low, close, timeperiod=cfg["ADX"])
     df["ATR_30m"] = talib.ATR(high, low, close, timeperiod=cfg["ATR"])
-
+    
     # MACD
     mc, ms, mh = talib.MACD(
         close, 
@@ -878,10 +1029,19 @@ def calculate_indicators_30m(df: pd.DataFrame) -> pd.DataFrame:
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
     di_ = hi_ - lo_
-    df["Fibo_23.6_30m"] = hi_ - di_*0.236
-    df["Fibo_38.2_30m"] = hi_ - di_*0.382
-    df["Fibo_61.8_30m"] = hi_ - di_*0.618
-
+    df["Fibo_23.6"] = hi_ - di_*0.236
+    df["Fibo_38.2"] = hi_ - di_*0.382
+    df["Fibo_61.8"] = hi_ - di_*0.618
+    df['Middle_Band'] = df['Close'].rolling(window=20).mean()
+    df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
+    df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
+    df['R1'] = 2 * pivot_ - low
+    df['S1'] = 2 * pivot_ - high
+    df['R2'] = pivot_ + (high - low)
+    df['S2'] = pivot_ - (high - low)
+   # Destek ve direnç seviyelerini birleştir
+    df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
+    df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
     # On-chain sim
     df["MarketCap_30m"]   = close*vol
     df["RealizedCap_30m"] = close*(vol.cumsum()/max(1,len(df)))
@@ -898,6 +1058,8 @@ def calculate_indicators_30m(df: pd.DataFrame) -> pd.DataFrame:
     df['SMA_20_30m'] = df['Close'].rolling(window=20).mean()
     df['SMA_50_30m'] = df['Close'].rolling(window=50).mean()
     df['EMA_20_30m'] = df['Close'].ewm(span=20, adjust=False).mean()
+    holy_grail_all_timeframes(df,"_30m")
+
     return df
 
 def calculate_indicators_1h(df: pd.DataFrame) -> pd.DataFrame:
@@ -1017,9 +1179,19 @@ def calculate_indicators_1h(df: pd.DataFrame) -> pd.DataFrame:
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
     di_ = hi_ - lo_
-    df["Fibo_23.6_1h"] = hi_ - di_*0.236
-    df["Fibo_38.2_1h"] = hi_ - di_*0.382
-    df["Fibo_61.8_1h"] = hi_ - di_*0.618
+    df["Fibo_23.6"] = hi_ - di_*0.236
+    df["Fibo_38.2"] = hi_ - di_*0.382
+    df["Fibo_61.8"] = hi_ - di_*0.618
+    df['Middle_Band'] = df['Close'].rolling(window=20).mean()
+    df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
+    df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
+    df['R1'] = 2 * pivot_ - low
+    df['S1'] = 2 * pivot_ - high
+    df['R2'] = pivot_ + (high - low)
+    df['S2'] = pivot_ - (high - low)
+   # Destek ve direnç seviyelerini birleştir
+    df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
+    df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
 
     # On-chain sim
     df["MarketCap_1h"]   = close*vol
@@ -1037,6 +1209,8 @@ def calculate_indicators_1h(df: pd.DataFrame) -> pd.DataFrame:
     df['SMA_20_1h'] = df['Close'].rolling(window=20).mean()
     df['SMA_50_1h'] = df['Close'].rolling(window=50).mean()
     df['EMA_20_1h'] = df['Close'].ewm(span=20, adjust=False).mean()
+    holy_grail_all_timeframes(df,"_1h")
+
     return df
 
 
@@ -1164,10 +1338,20 @@ def calculate_indicators_4h(df: pd.DataFrame) -> pd.DataFrame:
         df["Pivot_4h"] = pivot_
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
-    df_ = hi_ - lo_
-    df["Fibo_23.6_4h"] = hi_ - df_*0.236
-    df["Fibo_38.2_4h"] = hi_ - df_*0.382
-    df["Fibo_61.8_4h"] = hi_ - df_*0.618
+    di_ = hi_ - lo_
+    df["Fibo_23.6"] = hi_ - di_*0.236
+    df["Fibo_38.2"] = hi_ - di_*0.382
+    df["Fibo_61.8"] = hi_ - di_*0.618
+    df['Middle_Band'] = df['Close'].rolling(window=20).mean()
+    df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
+    df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
+    df['R1'] = 2 * pivot_ - low
+    df['S1'] = 2 * pivot_ - high
+    df['R2'] = pivot_ + (high - low)
+    df['S2'] = pivot_ - (high - low)
+   # Destek ve direnç seviyelerini birleştir
+    df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
+    df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
 
     # 16) On-chain sim (MVRV, NVT)
     df["MarketCap_4h"]   = close*vol
@@ -1186,6 +1370,8 @@ def calculate_indicators_4h(df: pd.DataFrame) -> pd.DataFrame:
     df['SMA_20_4h'] = df['Close'].rolling(window=20).mean()
     df['SMA_50_4h'] = df['Close'].rolling(window=50).mean()
     df['EMA_20_4h'] = df['Close'].ewm(span=20, adjust=False).mean()
+    holy_grail_all_timeframes(df,"_4h")
+
     return df
 
 
@@ -1314,10 +1500,20 @@ def calculate_indicators_1d(df: pd.DataFrame) -> pd.DataFrame:
         df["Pivot_1d"] = pivot_
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
-    df_ = hi_ - lo_
-    df["Fibo_23.6_1d"] = hi_ - df_*0.236
-    df["Fibo_38.2_1d"] = hi_ - df_*0.382
-    df["Fibo_61.8_1d"] = hi_ - df_*0.618
+    di_ = hi_ - lo_
+    df["Fibo_23.6"] = hi_ - di_*0.236
+    df["Fibo_38.2"] = hi_ - di_*0.382
+    df["Fibo_61.8"] = hi_ - di_*0.618
+    df['Middle_Band'] = df['Close'].rolling(window=20).mean()
+    df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
+    df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
+    df['R1'] = 2 * pivot_ - low
+    df['S1'] = 2 * pivot_ - high
+    df['R2'] = pivot_ + (high - low)
+    df['S2'] = pivot_ - (high - low)
+   # Destek ve direnç seviyelerini birleştir
+    df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
+    df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
 
     # 16) On-chain sim (MVRV, NVT)
     df["MarketCap_1d"]   = close*vol
@@ -1335,129 +1531,19 @@ def calculate_indicators_1d(df: pd.DataFrame) -> pd.DataFrame:
     df['SMA_20_1d'] = df['Close'].rolling(window=20).mean()
     df['SMA_50_1d'] = df['Close'].rolling(window=50).mean()
     df['EMA_20_1d'] = df['Close'].ewm(span=20, adjust=False).mean()
+    holy_grail_all_timeframes(df,"_1d")
+
     return df
 
 ###############################################################
 # tf_indicators.py - V6 (Gerçekçi Fractal + ATR Renko + MTF)
 ###############################################################
-def detect_holy_grail_signals(df: pd.DataFrame,
-                                
-                                 adx_threshold=30,
-                                
-                                 prefix="_1h") -> pd.DataFrame:
-    """
-    1H bazında Linda Raschke Holy Grail Setup.
-    Kolonlar => "1h_HolyGrailSignal" (0=none, +1=buy, -1=sell).
-    prefix="1h_" => df["1h_Close"], df["1h_High"], ...
-    """
-    df = df.copy()
-    # ADX, DI, EMA, ATR
-    
-    # Sinyal kolon
-    sigcol = f"HolyGrailSignal{prefix}"
-    df[sigcol] = 0
-
-    for i in range(1, len(df)):
-        adx_val   = df.loc[i, f"ADX{prefix}"]
-        plus_di   = df.loc[i, f"DI_plus{prefix}"]
-        minus_di  = df.loc[i, f"DI_minus{prefix}"]
-        ema_val   = df.loc[i, f"EMA_20{prefix}"]
-        c_close   = df.loc[i, f"Close{prefix}"]
-        c_low     = df.loc[i, f"Low{prefix}"]
-        c_high    = df.loc[i, f"High{prefix}"]
-
-        # 1) ADX>threshold => trend
-        if adx_val < adx_threshold:
-            continue
-
-        # 2) up => +DI> -DI
-        #    down => -DI> +DI
-        if plus_di > minus_di:
-            # up-trend => eğer c_low <= EMA20 ve c_close>EMA20 => buy
-            if (c_low <= ema_val) and (c_close>ema_val):
-                df.at[i, sigcol] = +1
-        else:
-            # down-trend => c_high>=EMA20 and c_close<EMA20 => sell
-            if (c_high >= ema_val) and (c_close<ema_val):
-                df.at[i, sigcol] = -1
-
-    return df
-def simple_holy_grail_stoploss(row, prefix="_1h", multiplier=1.5):
-    """
-    Stop = cClose +/- ATR * multiplier
-    """
-    sig = row[f"HolyGrailSignal{prefix}"]
-    c_close = row[f"Close{prefix}"]
-    atr_val = row[f"ATR{prefix}"]
-    if sig==+1:
-        return c_close - atr_val*multiplier
-    elif sig==-1:
-        return c_close + atr_val*multiplier
-    return None
-
-def holy_grail_all_timeframes(df: pd.DataFrame):
-    
-    
-        tf_list = ["_1m","_5m","_15m","_1h","_4h","_1d"]
-        for prefix in tf_list: 
-            df = detect_holy_grail_signals(df, adx_threshold=30, prefix=prefix)
-            # stop-loss
-            holy_stop = f"HolyGrail_StopLoss{prefix}"
-            df[holy_stop] = df.apply(
-                lambda row: simple_holy_grail_stoploss(row, prefix=prefix, multiplier=1.5),
-                axis=1
-            )
-            if prefix=="_1h": 
-                rsi="RSI_15m"
-            elif prefix =="_4h":
-                rsi="RSI_1h"
-            elif prefix =="_1d":
-                rsi="RSI_4h"
-            elif prefix =="_30m":
-                rsi="RSI_5m"
-            elif prefix=="_15m":
-                rsi="5m"
-            else :
-                rsi="1m"
-
-            
-
-
-            # 15m teyit => eğer "1h_HolyGrailSignal" = +1 => bullish => check 15m_RSI <35
-            df[f"HolyGrail_FinalSignal{prefix}"] = 0
-            sigcol = f"HolyGrailSignal{prefix}"
-
-            for i in range(len(df)):
-                sig_1h = df.loc[i, sigcol]
-                if sig_1h == 0:
-                    continue
-
-                if sig_1h == +1:
-                    # bullish
-                    if rsi in df.columns:
-                        rsi_15m_val = df.loc[i, rsi]
-                        if rsi_15m_val < 35:  # daha esnek
-                            df.at[i, f"HolyGrail_FinalSignal{prefix}"] = +1
-                    else:
-                        # 15m yok => mecbur direk sinyal
-                        df.at[i, f"HolyGrail_FinalSignal{prefix}"] = +1
-
-                elif sig_1h == -1:
-                    # e.g. RSI_15m>65 => confirm (daha esnek)
-                    if rsi in df.columns:
-                        rsi_15m_val = df.loc[i, rsi]
-                        if rsi_15m_val > 60:
-                            df.at[i, f"HolyGrail_FinalSignal{prefix}"] = -1
-                    else:
-                        df.at[i, f"HolyGrail_FinalSignal{prefix}"] = -1
-
-        return df
 
 ########################################
 # 1) ATR Tabanlı Renko Fonksiyonu
 ########################################
 
-def compute_atr_renko_signals(df: pd.DataFrame, 
+def compute_atr_renko_signals(df: pd.DataFrame, tf:str="1m",
                               atr_period=14, 
                               brick_size_multiplier=1.0) -> pd.DataFrame:
     """
@@ -1474,9 +1560,9 @@ def compute_atr_renko_signals(df: pd.DataFrame,
       ("RenkoTrend" => +1/-1/0) 
     """
     # 1) ATR => brick size
-    high = df["High"]
-    low  = df["Low"]
-    close= df["Close"]
+    high = df[f"High_{tf}"]
+    low  = df[f"Low_{tf}"]
+    close= df[f"Close_{tf}"]
 
     tr1 = (high - low).abs()
     tr2 = (high - close.shift(1)).abs()
@@ -1484,13 +1570,13 @@ def compute_atr_renko_signals(df: pd.DataFrame,
     tr  = tr1.combine(tr2, np.maximum).combine(tr3, np.maximum)
     atr_ = tr.rolling(atr_period).mean()  # basit ATR, dilerseniz talib.ATR
 
-    df["RenkoClose"] = np.nan
-    df["RenkoTrend"] = 0  # +1/-1/0
+    df[f"RenkoClose_{tf}"] = np.nan
+    df[f"RenkoTrend_{tf}"] = 0  # +1/-1/0
 
     current_renko_close = close.iloc[0]
     current_dir = 0
-    df.loc[df.index[0],"RenkoClose"] = current_renko_close
-    df.loc[df.index[0],"RenkoTrend"] = 0
+    df.loc[df.index[0],f"RenkoClose_{tf}"] = current_renko_close
+    df.loc[df.index[0],f"RenkoTrend_{tf}"] = 0
 
     # 2) her bar
     for i in range(1, len(df)):
@@ -1498,8 +1584,8 @@ def compute_atr_renko_signals(df: pd.DataFrame,
         bsize = atr_.iloc[i] * brick_size_multiplier if not np.isnan(atr_.iloc[i]) else None
         if bsize is None or bsize<=0:
             # ATR yok => 0
-            df.loc[df.index[i],"RenkoClose"] = current_renko_close
-            df.loc[df.index[i],"RenkoTrend"] = 0
+            df.loc[df.index[i],f"RenkoClose_{tf}"] = current_renko_close
+            df.loc[df.index[i],f"RenkoTrend_{tf}"] = 0
             continue
 
         up_diff   = c - current_renko_close
@@ -1518,10 +1604,10 @@ def compute_atr_renko_signals(df: pd.DataFrame,
             down_diff -= bsize
             direction = -1
 
-        df.loc[df.index[i],"RenkoClose"] = current_renko_close
-        df.loc[df.index[i],"RenkoTrend"] = direction
+        df.loc[df.index[i],f"RenkoClose_{tf}"] = current_renko_close
+        df.loc[df.index[i],f"RenkoTrend_{tf}"] = direction
         current_dir = direction
-
+        print("Renko Sinyals",current_renko_close,direction)
     return df
 
 ########################################
@@ -1545,7 +1631,7 @@ TF_BAR_COUNTS = {
     "1d": 100
 }
 
-def compute_billwilliams_fractals(df: pd.DataFrame, confirm_bars: int = 1) -> pd.DataFrame:
+def compute_billwilliams_fractals(df: pd.DataFrame, tf:str="1m", confirm_bars: int = 1) -> pd.DataFrame:
     """
     5-bar fractal tespiti:
       - Up fractal: High[i-2] > High[i-4..i-3..i-1..i]
@@ -1562,20 +1648,21 @@ def compute_billwilliams_fractals(df: pd.DataFrame, confirm_bars: int = 1) -> pd
     # 1) Klasik fractal
     for i in range(4, n):
         mid = i-2
-        if (df["High"].iloc[mid] > df["High"].iloc[mid-1] and
-            df["High"].iloc[mid] > df["High"].iloc[mid-2] and
-            df["High"].iloc[mid] > df["High"].iloc[mid+1] and
-            df["High"].iloc[mid] > df["High"].iloc[mid+2]):
+        #print(df["High"].iloc[mid])
+        if (df[f"High_{tf}"].iloc[mid] > df[f"High_{tf}"].iloc[mid-1] and
+            df[f"High_{tf}"].iloc[mid] > df[f"High_{tf}"].iloc[mid-2] and
+            df[f"High_{tf}"].iloc[mid] > df[f"High_{tf}"].iloc[mid+1] and
+            df[f"High_{tf}"].iloc[mid] > df[f"High_{tf}"].iloc[mid+2]):
             fractal_up[mid] = 1
 
-        if (df["Low"].iloc[mid] < df["Low"].iloc[mid-1] and
-            df["Low"].iloc[mid] < df["Low"].iloc[mid-2] and
-            df["Low"].iloc[mid] < df["Low"].iloc[mid+1] and
-            df["Low"].iloc[mid] < df["Low"].iloc[mid+2]):
+        if (df[f"Low_{tf}"].iloc[mid] < df[f"Low_{tf}"].iloc[mid-1] and
+            df[f"Low_{tf}"].iloc[mid] < df[f"Low_{tf}"].iloc[mid-2] and
+            df[f"Low_{tf}"].iloc[mid] < df[f"Low_{tf}"].iloc[mid+1] and
+            df[f"Low_{tf}"].iloc[mid] < df[f"Low_{tf}"].iloc[mid+2]):
             fractal_down[mid] = 1
 
-    df["Fractal_Up"] = fractal_up
-    df["Fractal_Down"] = fractal_down
+    df[f"Fractal_Up_{tf}"] = fractal_up
+    df[f"Fractal_Down_{tf}"] = fractal_down
 
     # 2) Confirmation (confirm_bars sonra onay ver)
     #    fractal_up  -> fractal_up_confirmed
@@ -1592,9 +1679,9 @@ def compute_billwilliams_fractals(df: pd.DataFrame, confirm_bars: int = 1) -> pd
             if i+confirm_bars < n:
                 conf_down[i+confirm_bars] = 1
 
-    df["Fractal_Up_Confirmed"] = conf_up
-    df["Fractal_Down_Confirmed"] = conf_down
-
+    df[f"Fractal_Up_Confirmed_{tf}"] = conf_up
+    df[f"Fractal_Down_Confirmed_{tf}"] = conf_up
+    print("Confirm_Fractals_{tf}",conf_up ,conf_up)
     return df
 
 def find_pivots(df: pd.DataFrame, col_name: str, left_right=2) -> pd.DataFrame:
@@ -1752,7 +1839,7 @@ def calculate_divergence_for_all_timeframes(df: pd.DataFrame,
         
         # 3) Gelişmiş Divergence hesapla
         mini = calculate_divergence_advanced(mini, tf=tf)
-        
+        #calculate_divergence_for_all_timeframes
         # Şimdi mini'de "PivotLow_Close_{tf}", "PivotHigh_Close_{tf}", 
         # "Divergence_Bull_{tf}", "Divergence_Bear_{tf}" vb. sütunlar güncel.
         # Bunu ana df'ye geri yazmalıyız. 
@@ -1763,8 +1850,9 @@ def calculate_divergence_for_all_timeframes(df: pd.DataFrame,
                      f"PivotLow_RSI_{tf}", f"PivotHigh_RSI_{tf}",
                      f"Divergence_Bull_{tf}", f"Divergence_Bear_{tf}"]:
             if col_ in mini.columns:
+                #print(col_)
                 df.loc[mini.index, col_] = mini[col_]
-
+          
     return df
 
 
@@ -1805,18 +1893,18 @@ def add_real_synergy_indicators_for_all_tfs(
         }, index=df.index)
 
         # 1) ATR Renko
-        mini = compute_atr_renko_signals(mini, 
+        mini = compute_atr_renko_signals(mini, tf,
                                          atr_period=atr_period, 
                                          brick_size_multiplier=brick_size_multiplier)
 
         # 2) Bill Williams Fractal
-        mini = compute_billwilliams_fractals(mini)
+        mini = compute_billwilliams_fractals(df,mini,tf)
 
         # 3) "Power_Fractal_{tf}" => fractal_up - fractal_down
-        mini[f"Power_Fractal_{tf}"] = mini["Fractal_Up"] - mini["Fractal_Down"]
+        mini[f"Power_Fractal_{tf}"] = mini[f"Fractal_Up_{tf}"] - mini[f"Fractal_Down_{tf}"]
 
         # 4) "Power_Renko_{tf}" => RenkoTrend
-        mini[f"Power_Renko_{tf}"] = mini["RenkoTrend"]
+        mini[f"Power_Renko_{tf}"] = mini[f"RenkoTrend_{tf}"]
 
         # 5) Orijinal df'ye ekliyoruz
         df[f"Power_Fractal_{tf}"] = mini[f"Power_Fractal_{tf}"]
@@ -1852,7 +1940,7 @@ def evaluate_all_indicators_v6(row: pd.Series) -> float:
             # Renko
         renko_key = f"Power_Renko_{tf}"
         pr = row.get(renko_key, 0)
-        print("renko",pr)
+        #print("renko",pr)
         synergy += pr * w  # pr=+1 => synergy += +1*w
 
         # Fractal Confirmed
@@ -1871,7 +1959,8 @@ def evaluate_all_indicators_v6(row: pd.Series) -> float:
         # Divergence
         div_bull = row.get(f"Divergence_Bull_{tf}", 0)
         div_bear = row.get(f"Divergence_Bear_{tf}", 0)
-        
+        #print("div_bull",div_bull,div_bear)
+
         synergy += div_bull * 2
         synergy -= div_bear * 2
         #print("sinerji",synergy)
@@ -2053,7 +2142,7 @@ def detect_regime_4h_v6(row_4h) -> str:
     oi_bb_mid= row_4h.get("OI_BBMid_4h", 0)
     oi_roc_ = row_4h.get("OI_ROC_4h", 0)
     oi_rsi_ = row_4h.get("OI_RSI_4h", 50)
-    print("-----sdfdsfsdfdf---",oi_val,oi_bb_mid,oi_rsi_)
+    #print("-----sdfdsfsdfdf---",oi_val,oi_bb_mid,oi_rsi_)
     if adx_ > 20:
        # Trend var
         # Koşul => RSI>55, MACD>MACDSig 
@@ -2263,7 +2352,7 @@ def final_decision_v6(regime: str, total_score: float, bull_conf: bool, bear_con
                   "LOW_VOL_TREND_UP", 
                   "LOW_VOL_TREND_UP_OVERHEATED"]:
         # Örnek kural: total_score > 3 + bull_conf => BUY
-        if total_score > 3 and bull_conf:
+        if total_score > 20:
             act = 1
             reason = f"{regime}_BULLCONF"
         else:
@@ -2276,7 +2365,7 @@ def final_decision_v6(regime: str, total_score: float, bull_conf: bool, bear_con
                     "TREND_DOWN_OVERHEATED", 
                     "LOW_VOL_TREND_DOWN", 
                     "LOW_VOL_TREND_DOWN_OVERHEATED"]:
-        if total_score < -3 and bear_conf:
+        if total_score < 0 :
             act = 0
             reason = f"{regime}_BEARCONF"
         else:
@@ -2285,7 +2374,7 @@ def final_decision_v6(regime: str, total_score: float, bull_conf: bool, bear_con
 
     # -------- 3) Breakout Soon --------
     elif regime == "BREAKOUT_SOON":
-        if total_score > 5:
+        if total_score > 10:
             act = 1
             reason = "BREAKOUT_SOON_BULLISH"
         elif total_score < -5:
@@ -2298,10 +2387,10 @@ def final_decision_v6(regime: str, total_score: float, bull_conf: bool, bear_con
     # -------- 4) Diğer Durumlar => RANGE --------
     else:
         # RANGE
-        if total_score > 5 and bull_conf:
+        if total_score > 5:
             act = 1
             reason = "RANGE_BULLISH"
-        elif total_score < -5 and bear_conf:
+        elif total_score < -5:
             act = 0
             reason = "RANGE_BEARISH"
         else:
@@ -2385,7 +2474,11 @@ def analyze_trends_and_signals_v6(df: pd.DataFrame) -> dict:
     df, 
     tf_list=tf_list,  # sadece 1h için örnek
     left_right=2
-)
+        )
+    calculate_divergence_for_all_timeframes(df, 
+                                            tf_list, 
+                                            left_right=2,
+                                            tf_bar_counts=None)
     df =holy_grail_all_timeframes(df)
 
     # 1) TF skorlar (örnek)
