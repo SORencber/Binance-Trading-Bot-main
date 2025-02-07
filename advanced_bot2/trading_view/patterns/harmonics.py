@@ -2,88 +2,58 @@
 import pandas as pd
 from core.logging_setup import log
 
-def get_col_name(base_col: str, time_frame: str) -> str:
-    """
-    Örnek: get_col_name("High", "5m") -> "High_5m"
-    """
-    return f"{base_col}_{time_frame}"
+############################
+# HARMONIC PATTERNS
+############################
 
-def detect_harmonic_multiple(
+def detect_harmonic_pattern_advanced(
     df: pd.DataFrame,
-    time_frame: str = "1h",
-    left_bars: int = 5,
-    right_bars: int = 5,
-    fib_tolerance: float = 0.02,
-    check_volume: bool = False,
-    patterns: list = None
-):
+    pivots,
+    time_frame: str = "1m",
+    fib_tolerance: float=0.02,
+    patterns: list = None,
+    check_volume: bool=False,
+    volume_factor: float=1.3,
+    check_retest: bool= False,
+    retest_tolerance: float=0.01
+)-> dict:
     """
-    Çoklu Harmonic Pattern Dedektörü (Gartley, Bat, Crab, Butterfly, Shark, Cipher).
-    5 pivot (X->A->B->C->D) + bullish/bearish tespiti + fib aralıkları.
-    Dönüş => True/False yerine basit => (bulduysa) True, yoksa False. 
-    (Eski 'detect_harmonic_pattern' bool döndürüyordu. 
-     Burada basit tutmak adına yine bool döndürebiliriz. 
-     Ama advanced => list pattern match de yapabilir.)
+    Harmonic Pattern (X,A,B,C,D).
     """
-    # Dilerseniz "list of pattern found" dönebilirsiniz, 
-    # ya da "True/False" => en az bir pattern match.
-    # Burada basit => "bulduysak True, aksi halde False"
-
-    high_col  = f"High_{time_frame}"
-    low_col   = f"Low_{time_frame}"
-    close_col = f"Close_{time_frame}"
-    vol_col   = f"Volume_{time_frame}"
-
     if patterns is None:
         patterns= ["gartley","bat","crab","butterfly","shark","cipher"]
+    result= {
+      "pattern": "harmonic",
+      "found": False,
+      "pattern_name": None,
+      "xabc": [],
+      "msgs": [],
+      "retest_info": None
+    }
+    wave= build_zigzag_wave(pivots)
+    if len(wave)<5:
+        result["msgs"].append("Not enough pivot for harmonic (need 5).")
+        return result
 
-    for c in [high_col,low_col,close_col]:
-        if c not in df.columns:
-            return False
+    X= wave[-5]
+    A= wave[-4]
+    B= wave[-3]
+    C= wave[-2]
+    D= wave[-1]
+    idxX, pxX,_= X
+    idxA, pxA,_= A
+    idxB, pxB,_= B
+    idxC, pxC,_= C
+    idxD, pxD,_= D
+    result["xabc"]=[X,A,B,C,D]
 
-    price_series= df[close_col]
-    n= len(df)
-    if n< left_bars+ right_bars+ 5:
-        return False
+    def length(a,b): return abs(b-a)
+    XA= length(pxX, pxA)
+    AB= length(pxA, pxB)
+    BC= length(pxB, pxC)
+    CD= length(pxC, pxD)
 
-    # 1) pivot bul
-    pivot_list= []
-    def is_local_max(i):
-        val= price_series.iloc[i]
-        left_sl= price_series.iloc[i-left_bars: i]
-        right_sl= price_series.iloc[i+1: i+1+ right_bars]
-        return all(val> l for l in left_sl) and all(val>= r for r in right_sl)
-
-    def is_local_min(i):
-        val= price_series.iloc[i]
-        left_sl= price_series.iloc[i-left_bars: i]
-        right_sl= price_series.iloc[i+1: i+1+ right_bars]
-        return all(val< l for l in left_sl) and all(val<= r for r in right_sl)
-
-    for i in range(left_bars, n- right_bars):
-        if is_local_max(i):
-            pivot_list.append( (i,price_series.iloc[i], +1) )
-        elif is_local_min(i):
-            pivot_list.append( (i,price_series.iloc[i], -1) )
-
-    # zigzag
-    pivot_list_sorted= sorted(pivot_list, key=lambda x: x[0])
-    zigzag= [pivot_list_sorted[0]]
-    for i in range(1, len(pivot_list_sorted)):
-        curr= pivot_list_sorted[i]
-        prev= zigzag[-1]
-        if curr[2]== prev[2]:
-            if curr[2]== +1:
-                if curr[1]> prev[1]:
-                    zigzag[-1]= curr
-            else:
-                if curr[1]< prev[1]:
-                    zigzag[-1]= curr
-        else:
-            zigzag.append(curr)
-
-    # 2) pattern specs
-    harmonic_specs= {
+    harmonic_map= {
         "gartley": {
             "AB_XA": (0.618, 0.618),
             "BC_AB": (0.382, 0.886),
@@ -100,7 +70,7 @@ def detect_harmonic_multiple(
             "CD_BC": (2.24, 3.618)
         },
         "butterfly": {
-            "AB_XA": (0.786, 0.786), 
+            "AB_XA": (0.786, 0.786),
             "BC_AB": (0.382, 0.886),
             "CD_BC": (1.618, 2.24)
         },
@@ -115,76 +85,108 @@ def detect_harmonic_multiple(
             "CD_BC": (1.13,1.414)
         }
     }
-
-    def ratio_in_range(r, rng, tol):
-        (mn,mx)= rng
-        if abs(mn- mx)< 1e-9:
-            return (abs(r- mn)<= mn* tol)
+    def in_range(val, rng, tol):
+        mn,mx= rng
+        if abs(mn-mx)<1e-9:
+            return abs(val- mn)<= abs(mn)*tol
         else:
-            lo= mn- mn* tol
-            hi= mx+ mx* tol
-            return (r>=lo and r<= hi)
+            low_= mn- abs(mn)* tol
+            high_= mx+ abs(mx)* tol
+            return low_<= val<= high_
 
-    # 3) 5 li pivot => X->A->B->C->D
-    # bull => -1,+1,-1,+1,-1
-    # bear => +1,-1,+1,-1,+1
+    AB_XA= AB/(XA+1e-9)
+    BC_AB= BC/(AB+1e-9)
+    CD_BC= CD/(BC+1e-9)
+
     found_any= False
-    i= 0
-    while i< (len(zigzag)-4):
-        X= zigzag[i]
-        A= zigzag[i+1]
-        B= zigzag[i+2]
-        C= zigzag[i+3]
-        D= zigzag[i+4]
-
-        idxX, pxX, tX= X
-        idxA, pxA, tA= A
-        idxB, pxB, tB= B
-        idxC, pxC, tC= C
-        idxD, pxD, tD= D
-
-        if not (idxX< idxA< idxB< idxC< idxD):
-            i+=1
+    matched_pattern= None
+    for pat in patterns:
+        if pat not in harmonic_map:
             continue
+        spec= harmonic_map[pat]
+        rngAB_XA= spec["AB_XA"]
+        rngBC_AB= spec["BC_AB"]
+        rngCD_BC= spec["CD_BC"]
 
-        is_bull= (tX==-1 and tA==+1 and tB==-1 and tC==+1 and tD==-1)
-        is_bear= (tX==+1 and tA==-1 and tB==+1 and tC==-1 and tD==+1)
-        if not (is_bull or is_bear):
-            i+=1
-            continue
+        ok1= in_range(AB_XA, rngAB_XA, fib_tolerance)
+        ok2= in_range(BC_AB, rngBC_AB, fib_tolerance)
+        ok3= in_range(CD_BC, rngCD_BC, fib_tolerance)
+        if ok1 and ok2 and ok3:
+            found_any= True
+            matched_pattern= pat
+            break
+    if found_any:
+        result["found"]= True
+        result["pattern_name"]= matched_pattern
 
-        def dist(a,b): return abs(b-a)
-        XA= dist(pxX, pxA)
-        AB= dist(pxA, pxB)
-        BC= dist(pxB, pxC)
-        CD= dist(pxC, pxD)
+        volume_col= get_col_name("Volume", time_frame)
+        if check_volume and volume_col in df.columns and idxD<len(df):
+            vol_now= df[volume_col].iloc[idxD]
+            prepare_volume_ma(df, time_frame, period=20)
+            ma_col= f"Volume_MA_20_{time_frame}"
+            if ma_col in df.columns:
+                v_mean= df[ma_col].iloc[idxD]
+                if (v_mean>0) and (vol_now> volume_factor*v_mean):
+                    # "Güçlü hacim"
+                    pass
 
-        for pat in patterns:
-            if pat not in harmonic_specs:
-                continue
-            spec= harmonic_specs[pat]
-            rngAB_XA= spec["AB_XA"]
-            rngBC_AB= spec["BC_AB"]
-            rngCD_BC= spec["CD_BC"]
+        if check_retest:
+            close_col= get_col_name("Close", time_frame)
+            if close_col in df.columns:
+                retest_done= False
+                retest_bar = None
+                for i in range(idxD+1, len(df)):
+                    c= df[close_col].iloc[i]
+                    dist_ratio = abs(c - pxD)/(abs(pxD)+1e-9)
+                    if dist_ratio <= retest_tolerance:
+                        retest_done= True
+                        retest_bar= i
+                        break
+                if retest_done:
+                    result["retest_info"] = {
+                        "retest_done": True,
+                        "retest_bar": retest_bar,
+                        "retest_price": df[close_col].iloc[retest_bar]
+                    }
+                else:
+                    result["retest_info"] = {"retest_done": False}
+    else:
+        result["msgs"].append("No harmonic pattern matched.")
+    return result
 
-            AB_XA= AB/(XA+1e-9)
-            BC_AB= BC/(AB+1e-9)
-            CD_BC= CD/(BC+1e-9)
+def get_col_name(base_col: str, time_frame: str) -> str:
+    return f"{base_col}_{time_frame}"
 
-            okAB= ratio_in_range(AB_XA, rngAB_XA, fib_tolerance)
-            okBC= ratio_in_range(BC_AB, rngBC_AB, fib_tolerance)
-            okCD= ratio_in_range(CD_BC, rngCD_BC, fib_tolerance)
+def prepare_volume_ma(df: pd.DataFrame, time_frame: str="1m", period: int=20):
+    """
+    Volume_MA_20_{time_frame} hesaplayıp ekler.
+    """
+    vol_col = get_col_name("Volume", time_frame)
+    ma_col  = f"Volume_MA_{period}_{time_frame}"
+    if (vol_col in df.columns) and (ma_col not in df.columns):
+        df[ma_col] = df[vol_col].rolling(period).mean()
 
-            if okAB and okBC and okCD:
-                # volume check?
-                if check_volume and vol_col in df.columns:
-                    if idxD< len(df):
-                        v_now= df[vol_col].iloc[idxD]
-                        start_= max(0, idxD-20)
-                        v_mean= df[vol_col].iloc[start_: idxD].mean()
-                        if v_now> 1.2* v_mean:
-                            pass
-                found_any= True
-        i+=1
+############################
+# ZIGZAG HELPER
+############################
 
-    return found_any
+def build_zigzag_wave(pivots):
+    if not pivots:
+        return []
+    sorted_p = sorted(pivots, key=lambda x: x[0])
+    wave = [sorted_p[0]]
+    for i in range(1, len(sorted_p)):
+        curr = sorted_p[i]
+        prev = wave[-1]
+        if curr[2] == prev[2]:
+            # aynı tip => pivotu güncelle
+            if curr[2] == +1:
+                if curr[1] > prev[1]:
+                    wave[-1] = curr
+            else:
+                if curr[1] < prev[1]:
+                    wave[-1] = curr
+        else:
+            wave.append(curr)
+    return wave
+

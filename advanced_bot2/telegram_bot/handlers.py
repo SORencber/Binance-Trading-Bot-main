@@ -56,6 +56,8 @@ async def addsymbol_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_sym = tokens[1].upper()
 
     if new_sym not in shared_ctx.config["symbols"]:
+        #shared_ctx = SharedContext(BOT_CONFIG)
+
         shared_ctx.config["symbols"].append(new_sym)
         # Not: manage_tasks'te anlık ek okuması => 
         # en basit: shared_ctx.symbol_map[new_sym] = SymbolState(new_sym)

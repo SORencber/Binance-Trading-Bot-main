@@ -585,17 +585,32 @@ def calculate_indicators_1m(df: pd.DataFrame) -> pd.DataFrame:
     df["CDL_ENGULFING_1m"] = talib.CDLENGULFING(df["Open"], df["High"], df["Low"], df["Close"])
 
     # Pivot & Fibo
+      # 15) Pivot & Fibo
     if len(df)>0:
         last_bar = df.iloc[-1]
         pivot_ = (last_bar["High"] + last_bar["Low"] + last_bar["Close"])/3
         df["Pivot_1m"] = pivot_
-    highest_ = df["High"].max()
-    lowest_  = df["Low"].min()
-    diff_    = highest_ - lowest_
-    df["Fibo_23.6_1m"] = highest_ - diff_*0.236
-    df["Fibo_38.2_1m"] = highest_ - diff_*0.382
-    df["Fibo_61.8_1m"] = highest_ - diff_*0.618
-
+    hi_ = df["High"].max()
+    lo_ = df["Low"].min()
+    di_ = hi_ - lo_
+    recent_high = df["High"].iloc[-100:].max()  # Son 100 bar içindeki en yüksek seviye
+    recent_low  = df["Low"].iloc[-100:].min()   # Son 100 bar içindeki en düşük seviye
+    di_ = recent_high - recent_low
+    #df["Fibo_61.8"] = recent_high - di_ * 0.618
+    df["Fibo_23.6"] = recent_high - di_*0.236
+    df["Fibo_38.2"] = recent_high - di_*0.382
+    df["Fibo_61.8"] = recent_high - di_*0.618
+    df['Middle_Band'] = df['Close'].rolling(window=20).mean()
+    df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
+    df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
+    df['R1'] = 2 * pivot_ - low
+    df['S1'] = 2 * pivot_ - high
+    df['R2'] = pivot_ + (high - low)
+    df['S2'] = pivot_ - (high - low)
+   # Destek ve direnç seviyelerini birleştir
+    df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
+    df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
+    #print("---------", df['R1'] , df['Upper_Band'], df['Fibo_61.8'])
     # On-chain Sim: MVRV, NVT
     df["MarketCap_1m"]   = close * vol
     df["RealizedCap_1m"] = close*(vol.cumsum()/max(1,len(df)))
@@ -732,17 +747,32 @@ def calculate_indicators_5m(df: pd.DataFrame) -> pd.DataFrame:
     # Engulfing
     df["CDL_ENGULFING_5m"] = talib.CDLENGULFING(df["Open"], df["High"], df["Low"], df["Close"])
         # Pivot & Fibo
+        # 15) Pivot & Fibo
     if len(df)>0:
-        lb = df.iloc[-1]
-        pivot_ = (lb["High"]+lb["Low"]+lb["Close"])/3
+        last_bar = df.iloc[-1]
+        pivot_ = (last_bar["High"] + last_bar["Low"] + last_bar["Close"])/3
         df["Pivot_5m"] = pivot_
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
-    d_  = hi_ - lo_
-    df["Fibo_23.6_5m"] = hi_ - d_*0.236
-    df["Fibo_38.2_5m"] = hi_ - d_*0.382
-    df["Fibo_61.8_5m"] = hi_ - d_*0.618
-
+    di_ = hi_ - lo_
+    recent_high = df["High"].iloc[-100:].max()  # Son 100 bar içindeki en yüksek seviye
+    recent_low  = df["Low"].iloc[-100:].min()   # Son 100 bar içindeki en düşük seviye
+    di_ = recent_high - recent_low
+    #df["Fibo_61.8"] = recent_high - di_ * 0.618
+    df["Fibo_23.6"] = recent_high - di_*0.236
+    df["Fibo_38.2"] = recent_high - di_*0.382
+    df["Fibo_61.8"] = recent_high - di_*0.618
+    df['Middle_Band'] = df['Close'].rolling(window=20).mean()
+    df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
+    df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
+    df['R1'] = 2 * pivot_ - low
+    df['S1'] = 2 * pivot_ - high
+    df['R2'] = pivot_ + (high - low)
+    df['S2'] = pivot_ - (high - low)
+   # Destek ve direnç seviyelerini birleştir
+    df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
+    df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
+    #print("---------", df['R1'] , df['Upper_Band'], df['Fibo_61.8'])
     # On-chain sim
     df["MarketCap_5m"]   = close*vol
     df["RealizedCap_5m"] = close*(vol.cumsum()/max(1,len(df)))
@@ -878,17 +908,32 @@ def calculate_indicators_15m(df: pd.DataFrame) -> pd.DataFrame:
     df["CDL_ENGULFING_15m"] = talib.CDLENGULFING(df["Open"], df["High"], df["Low"], df["Close"])
 
     # Pivot & Fibo
+        # 15) Pivot & Fibo
     if len(df)>0:
-        lb = df.iloc[-1]
-        pivot_ = (lb["High"]+ lb["Low"]+ lb["Close"])/3
+        last_bar = df.iloc[-1]
+        pivot_ = (last_bar["High"] + last_bar["Low"] + last_bar["Close"])/3
         df["Pivot_15m"] = pivot_
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
     di_ = hi_ - lo_
-    df["Fibo_23.6_15m"] = hi_ - di_*0.236
-    df["Fibo_38.2_15m"] = hi_ - di_*0.382
-    df["Fibo_61.8_15m"] = hi_ - di_*0.618
-
+    recent_high = df["High"].iloc[-100:].max()  # Son 100 bar içindeki en yüksek seviye
+    recent_low  = df["Low"].iloc[-100:].min()   # Son 100 bar içindeki en düşük seviye
+    di_ = recent_high - recent_low
+    #df["Fibo_61.8"] = recent_high - di_ * 0.618
+    df["Fibo_23.6"] = recent_high - di_*0.236
+    df["Fibo_38.2"] = recent_high - di_*0.382
+    df["Fibo_61.8"] = recent_high - di_*0.618
+    df['Middle_Band'] = df['Close'].rolling(window=20).mean()
+    df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
+    df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
+    df['R1'] = 2 * pivot_ - low
+    df['S1'] = 2 * pivot_ - high
+    df['R2'] = pivot_ + (high - low)
+    df['S2'] = pivot_ - (high - low)
+   # Destek ve direnç seviyelerini birleştir
+    df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
+    df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
+    #print("---------", df['R1'] , df['Upper_Band'], df['Fibo_61.8'])
     # On-chain sim
     df["MarketCap_15m"]   = close*vol
     df["RealizedCap_15m"] = close*(vol.cumsum()/max(1,len(df)))
@@ -927,6 +972,10 @@ def calculate_indicators_30m(df: pd.DataFrame) -> pd.DataFrame:
         20,
         2,
          10)
+
+
+
+ 
     # RSI, ADX, ATR
     df["RSI_30m"] = talib.RSI(close, timeperiod=cfg["RSI"])
     df["ADX_30m"] = talib.ADX(high, low, close, timeperiod=cfg["ADX"])
@@ -1022,16 +1071,21 @@ def calculate_indicators_30m(df: pd.DataFrame) -> pd.DataFrame:
     df["CDL_ENGULFING_30m"] = talib.CDLENGULFING(df["Open"], df["High"], df["Low"], df["Close"])
 
     # Pivot & Fibo
+       # 15) Pivot & Fibo
     if len(df)>0:
-        lb = df.iloc[-1]
-        pivot_ = (lb["High"]+ lb["Low"]+ lb["Close"])/3
+        last_bar = df.iloc[-1]
+        pivot_ = (last_bar["High"] + last_bar["Low"] + last_bar["Close"])/3
         df["Pivot_30m"] = pivot_
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
     di_ = hi_ - lo_
-    df["Fibo_23.6"] = hi_ - di_*0.236
-    df["Fibo_38.2"] = hi_ - di_*0.382
-    df["Fibo_61.8"] = hi_ - di_*0.618
+    recent_high = df["High"].iloc[-100:].max()  # Son 100 bar içindeki en yüksek seviye
+    recent_low  = df["Low"].iloc[-100:].min()   # Son 100 bar içindeki en düşük seviye
+    di_ = recent_high - recent_low
+    #df["Fibo_61.8"] = recent_high - di_ * 0.618
+    df["Fibo_23.6"] = recent_high - di_*0.236
+    df["Fibo_38.2"] = recent_high - di_*0.382
+    df["Fibo_61.8"] = recent_high - di_*0.618
     df['Middle_Band'] = df['Close'].rolling(window=20).mean()
     df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
     df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
@@ -1042,6 +1096,7 @@ def calculate_indicators_30m(df: pd.DataFrame) -> pd.DataFrame:
    # Destek ve direnç seviyelerini birleştir
     df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
     df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
+    #print("---------", df['R1'] , df['Upper_Band'], df['Fibo_61.8'])
     # On-chain sim
     df["MarketCap_30m"]   = close*vol
     df["RealizedCap_30m"] = close*(vol.cumsum()/max(1,len(df)))
@@ -1172,16 +1227,21 @@ def calculate_indicators_1h(df: pd.DataFrame) -> pd.DataFrame:
     df["Is_Hammer_1h"]   = ((df["Lower_Wick_1h"]>2*df["Candle_Body_1h"]) & (df["Upper_Wick_1h"]< df["Candle_Body_1h"])).astype(int)
 
     # Pivot & Fibo
+        # 15) Pivot & Fibo
     if len(df)>0:
-        lb = df.iloc[-1]
-        pivot_ = (lb["High"]+ lb["Low"]+ lb["Close"])/3
+        last_bar = df.iloc[-1]
+        pivot_ = (last_bar["High"] + last_bar["Low"] + last_bar["Close"])/3
         df["Pivot_1h"] = pivot_
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
     di_ = hi_ - lo_
-    df["Fibo_23.6"] = hi_ - di_*0.236
-    df["Fibo_38.2"] = hi_ - di_*0.382
-    df["Fibo_61.8"] = hi_ - di_*0.618
+    recent_high = df["High"].iloc[-100:].max()  # Son 100 bar içindeki en yüksek seviye
+    recent_low  = df["Low"].iloc[-100:].min()   # Son 100 bar içindeki en düşük seviye
+    di_ = recent_high - recent_low
+    #df["Fibo_61.8"] = recent_high - di_ * 0.618
+    df["Fibo_23.6"] = recent_high - di_*0.236
+    df["Fibo_38.2"] = recent_high - di_*0.382
+    df["Fibo_61.8"] = recent_high - di_*0.618
     df['Middle_Band'] = df['Close'].rolling(window=20).mean()
     df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
     df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
@@ -1192,7 +1252,7 @@ def calculate_indicators_1h(df: pd.DataFrame) -> pd.DataFrame:
    # Destek ve direnç seviyelerini birleştir
     df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
     df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
-
+    #print("---------", df['R1'] , df['Upper_Band'], df['Fibo_61.8'])
     # On-chain sim
     df["MarketCap_1h"]   = close*vol
     df["RealizedCap_1h"] = close*(vol.cumsum()/max(1,len(df)))
@@ -1339,9 +1399,13 @@ def calculate_indicators_4h(df: pd.DataFrame) -> pd.DataFrame:
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
     di_ = hi_ - lo_
-    df["Fibo_23.6"] = hi_ - di_*0.236
-    df["Fibo_38.2"] = hi_ - di_*0.382
-    df["Fibo_61.8"] = hi_ - di_*0.618
+    recent_high = df["High"].iloc[-100:].max()  # Son 100 bar içindeki en yüksek seviye
+    recent_low  = df["Low"].iloc[-100:].min()   # Son 100 bar içindeki en düşük seviye
+    di_ = recent_high - recent_low
+    #df["Fibo_61.8"] = recent_high - di_ * 0.618
+    df["Fibo_23.6"] = recent_high - di_*0.236
+    df["Fibo_38.2"] = recent_high - di_*0.382
+    df["Fibo_61.8"] = recent_high - di_*0.618
     df['Middle_Band'] = df['Close'].rolling(window=20).mean()
     df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
     df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
@@ -1352,6 +1416,7 @@ def calculate_indicators_4h(df: pd.DataFrame) -> pd.DataFrame:
    # Destek ve direnç seviyelerini birleştir
     df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
     df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
+    #print("---------", df['R1'] , df['Upper_Band'], df['Fibo_61.8'])
 
     # 16) On-chain sim (MVRV, NVT)
     df["MarketCap_4h"]   = close*vol
@@ -1495,15 +1560,19 @@ def calculate_indicators_1d(df: pd.DataFrame) -> pd.DataFrame:
 
     # 15) Pivot & Fibo
     if len(df)>0:
-        lb = df.iloc[-1]
-        pivot_ = (lb["High"] + lb["Low"] + lb["Close"])/3
+        last_bar = df.iloc[-1]
+        pivot_ = (last_bar["High"] + last_bar["Low"] + last_bar["Close"])/3
         df["Pivot_1d"] = pivot_
     hi_ = df["High"].max()
     lo_ = df["Low"].min()
     di_ = hi_ - lo_
-    df["Fibo_23.6"] = hi_ - di_*0.236
-    df["Fibo_38.2"] = hi_ - di_*0.382
-    df["Fibo_61.8"] = hi_ - di_*0.618
+    recent_high = df["High"].iloc[-100:].max()  # Son 100 bar içindeki en yüksek seviye
+    recent_low  = df["Low"].iloc[-100:].min()   # Son 100 bar içindeki en düşük seviye
+    di_ = recent_high - recent_low
+    #df["Fibo_61.8"] = recent_high - di_ * 0.618
+    df["Fibo_23.6"] = recent_high - di_*0.236
+    df["Fibo_38.2"] = recent_high - di_*0.382
+    df["Fibo_61.8"] = recent_high - di_*0.618
     df['Middle_Band'] = df['Close'].rolling(window=20).mean()
     df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
     df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
@@ -1514,7 +1583,7 @@ def calculate_indicators_1d(df: pd.DataFrame) -> pd.DataFrame:
    # Destek ve direnç seviyelerini birleştir
     df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
     df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
-
+    #print("---------", df['R1'] , df['Upper_Band'], df['Fibo_61.8'])
     # 16) On-chain sim (MVRV, NVT)
     df["MarketCap_1d"]   = close*vol
     df["RealizedCap_1d"] = close*(vol.cumsum()/max(1,len(df)))

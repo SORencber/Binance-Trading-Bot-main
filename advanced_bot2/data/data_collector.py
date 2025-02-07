@@ -694,13 +694,13 @@ async def loop_data_collector(ctx: SharedContext, strategy):
                 print("analiz basladi")
                 #holy_grail_all_timeframes(df_final)
                 #result = analyze_trends_and_signals_v6(df_final)
-                # #df_final.to_csv("data/price_data.csv", index=False)
+                #df_final.to_csv("data/price_data.csv", index=False)
                 
-                #print("RESULT =>", result)
-                #print("Detail Scores =>", result["detail_scores"])
-                #print("Delayed Signals =>", result["delayed_signals"])
-                if s not in ctx.df_map:
-                    ctx.df_map[s] = {}
+                # print("RESULT =>", result)
+                # print("Detail Scores =>", result["detail_scores"])
+                # print("Delayed Signals =>", result["delayed_signals"])
+                # if s not in ctx.df_map:
+                ctx.df_map[s] = {}
                 ctx.df_map[s]["merged"] = df_final
                 ctx.df_map[s]["1m"] = df_1m_ind
                 ctx.df_map[s]["5m"] = df_5m_ind

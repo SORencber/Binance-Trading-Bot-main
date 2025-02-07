@@ -6,270 +6,270 @@ import talib
 ##################################################################
 # 1) Pattern Skor Fonksiyonu (final_score)
 ##################################################################
-def final_score(df, patterns, time_frame, check_rsi_macd,
-                v_spike, rsi_macd_signal, b_up, b_down,
-                ml_label, max_bars_ago, wave, require_confirmed, trade_levels):
-    """
-    Verilen pattern dictionary'si üzerinden bir skor ve
-    sinyal (BUY/SELL/HOLD) oluşturur.
-    trade_levels: pattern bazında hesaplanmış entry/stop/tp gibi seviye bilgileri
-    """
-    pattern_score = 0
-    reasons = []
+# def final_score(df, patterns, time_frame, check_rsi_macd,
+#                 v_spike, rsi_macd_signal, b_up, b_down,
+#                 ml_label, max_bars_ago, wave, require_confirmed, trade_levels):
+#     """
+#     Verilen pattern dictionary'si üzerinden bir skor ve
+#     sinyal (BUY/SELL/HOLD) oluşturur.
+#     trade_levels: pattern bazında hesaplanmış entry/stop/tp gibi seviye bilgileri
+#     """
+#     pattern_score = 0
+#     reasons = []
 
-    def log(msg, level="info"):
-        print(f"[{level.upper()}] {msg}")
+#     def log(msg, level="info"):
+#         print(f"[{level.upper()}] {msg}")
      
-    def filter_patterns(pat_list):
-        #print(pat_list)
-        if isinstance(pat_list, dict):
-            pat_list = [pat_list]
-        elif not isinstance(pat_list, list):
-            log(f"Pattern type mismatch => {pat_list}", "error")
-            return []
+#     def filter_patterns(pat_list):
+#         #print(pat_list)
+#         if isinstance(pat_list, dict):
+#             pat_list = [pat_list]
+#         elif not isinstance(pat_list, list):
+#             log(f"Pattern type mismatch => {pat_list}", "error")
+#             return []
         
-        filtered = []
-        cutoff = len(df) - max_bars_ago
-        for p in pat_list:
-            end_bar = p.get("end_bar", None)
-            cbar = p.get("confirmed_bar", None)
-            if end_bar is None:
-                end_bar = cbar if cbar else 0
-            if end_bar >= cutoff:
-                if require_confirmed:
-                    if p.get("confirmed", False):
-                        filtered.append(p)
-                else:
-                    filtered.append(p)
-        #print("FILITRE------------------",filtered)
-        return filtered
+#         filtered = []
+#         cutoff = len(df) - max_bars_ago
+#         for p in pat_list:
+#             end_bar = p.get("end_bar", None)
+#             cbar = p.get("confirmed_bar", None)
+#             if end_bar is None:
+#                 end_bar = cbar if cbar else 0
+#             if end_bar >= cutoff:
+#                 if require_confirmed:
+#                     if p.get("confirmed", False):
+#                         filtered.append(p)
+#                 else:
+#                     filtered.append(p)
+#         #print("FILITRE------------------",filtered)
+#         return filtered
 
-    # ----------------------------------------------------------------
-    # HEAD & SHOULDERS
-    # ----------------------------------------------------------------
-    hs_list = filter_patterns(patterns.get("head_and_shoulders", []))
-    for hs in hs_list:
-        val = -4
-        if hs.get("confirmed") and hs.get("volume_check", True):
-            val = -5
-        pattern_score += val
-        reasons.append(f"headshoulders({val})")
+#     # ----------------------------------------------------------------
+#     # HEAD & SHOULDERS
+#     # ----------------------------------------------------------------
+#     hs_list = filter_patterns(patterns.get("head_and_shoulders", []))
+#     for hs in hs_list:
+#         val = -4
+#         if hs.get("confirmed") and hs.get("volume_check", True):
+#             val = -5
+#         pattern_score += val
+#         reasons.append(f"headshoulders({val})")
 
-    inv_hs_list = filter_patterns(patterns.get("inverse_head_and_shoulders", []))
-    for inv in inv_hs_list:
-        val = +3
-        if inv.get("confirmed") and inv.get("volume_check", True):
-            val = +4
-        pattern_score += val
-        reasons.append(f"inverseHS({val})")
+#     inv_hs_list = filter_patterns(patterns.get("inverse_head_and_shoulders", []))
+#     for inv in inv_hs_list:
+#         val = +3
+#         if inv.get("confirmed") and inv.get("volume_check", True):
+#             val = +4
+#         pattern_score += val
+#         reasons.append(f"inverseHS({val})")
 
-    # ----------------------------------------------------------------
-    # DOUBLE / TRIPLE TOP-BOTTOM (Klasik)
-    # ----------------------------------------------------------------
-    dtops = filter_patterns(patterns.get("double_top", []))
-    for dt in dtops:
-        val = -2
-        if dt.get("confirmed"):
-            val -= 3  # toplam -5
-        pattern_score += val
-        reasons.append(f"double_top({val})")
+#     # ----------------------------------------------------------------
+#     # DOUBLE / TRIPLE TOP-BOTTOM (Klasik)
+#     # ----------------------------------------------------------------
+#     dtops = filter_patterns(patterns.get("double_top", []))
+#     for dt in dtops:
+#         val = -2
+#         if dt.get("confirmed"):
+#             val -= 3  # toplam -5
+#         pattern_score += val
+#         reasons.append(f"double_top({val})")
 
-    dbots = filter_patterns(patterns.get("double_bottom", []))
-    for db in dbots:
-        val = +2
-        if db.get("confirmed"):
-            val += 1  # toplam +3
-        pattern_score += val
-        reasons.append(f"double_bottom({val})")
+#     dbots = filter_patterns(patterns.get("double_bottom", []))
+#     for db in dbots:
+#         val = +2
+#         if db.get("confirmed"):
+#             val += 1  # toplam +3
+#         pattern_score += val
+#         reasons.append(f"double_bottom({val})")
 
-    # ----------------------------------------------------------------
-    # TRIPLE TOP / BOTTOM ADVANCED
-    # ----------------------------------------------------------------
-    triple_tops = filter_patterns(patterns.get("triple_top_advanced", []))
-    for ttop in triple_tops:
-        val = -3
-        if ttop.get("confirmed"):
-            val -= 2  # -5
-        pattern_score += val
-        reasons.append(f"triple_top_adv({val})")
+#     # ----------------------------------------------------------------
+#     # TRIPLE TOP / BOTTOM ADVANCED
+#     # ----------------------------------------------------------------
+#     triple_tops = filter_patterns(patterns.get("triple_top_advanced", []))
+#     for ttop in triple_tops:
+#         val = -3
+#         if ttop.get("confirmed"):
+#             val -= 2  # -5
+#         pattern_score += val
+#         reasons.append(f"triple_top_adv({val})")
 
-    triple_bots = filter_patterns(patterns.get("triple_bottom_advanced", []))
-    for tbot in triple_bots:
-        val = +3
-        if tbot.get("confirmed"):
-            val += 2  # +5
-        pattern_score += val
-        reasons.append(f"triple_bottom_adv({val})")
+#     triple_bots = filter_patterns(patterns.get("triple_bottom_advanced", []))
+#     for tbot in triple_bots:
+#         val = +3
+#         if tbot.get("confirmed"):
+#             val += 2  # +5
+#         pattern_score += val
+#         reasons.append(f"triple_bottom_adv({val})")
 
-    # ----------------------------------------------------------------
-    # ELLIOTT
-    # ----------------------------------------------------------------
-    ell = patterns.get("elliott", {})
-    if ell.get("found") and wave:
-        if wave[-1][0] >= (len(df) - max_bars_ago):
-            if ell.get("trend")=="UP":
-                pattern_score += 3
-                reasons.append("elliott_up")
-            else:
-                pattern_score -= 3
-                reasons.append("elliott_down")
+#     # ----------------------------------------------------------------
+#     # ELLIOTT
+#     # ----------------------------------------------------------------
+#     ell = patterns.get("elliott", {})
+#     if ell.get("found") and wave:
+#         if wave[-1][0] >= (len(df) - max_bars_ago):
+#             if ell.get("trend")=="UP":
+#                 pattern_score += 3
+#                 reasons.append("elliott_up")
+#             else:
+#                 pattern_score -= 3
+#                 reasons.append("elliott_down")
 
-    # ----------------------------------------------------------------
-    # WOLFE
-    # ----------------------------------------------------------------
-    wol = patterns.get("wolfe", {})
-    if wol.get("found") and wave:
-        if wave[-1][0] >= (len(df) - max_bars_ago):
-            wol_val = +2
-            if wol.get("breakout"):
-                wol_val += 1
-            pattern_score += wol_val
-            reasons.append(f"wolfe({wol_val})")
+#     # ----------------------------------------------------------------
+#     # WOLFE
+#     # ----------------------------------------------------------------
+#     wol = patterns.get("wolfe", {})
+#     if wol.get("found") and wave:
+#         if wave[-1][0] >= (len(df) - max_bars_ago):
+#             wol_val = +2
+#             if wol.get("breakout"):
+#                 wol_val += 1
+#             pattern_score += wol_val
+#             reasons.append(f"wolfe({wol_val})")
 
-    # ----------------------------------------------------------------
-    # HARMONIC
-    # ----------------------------------------------------------------
-    harm = patterns.get("harmonic", {})
-    if harm.get("found") and wave:
-        if wave[-1][0] >= (len(df)-max_bars_ago):
-            pattern_score -= 1
-            reasons.append("harmonic(-1)")
+#     # ----------------------------------------------------------------
+#     # HARMONIC
+#     # ----------------------------------------------------------------
+#     harm = patterns.get("harmonic", {})
+#     if harm.get("found") and wave:
+#         if wave[-1][0] >= (len(df)-max_bars_ago):
+#             pattern_score -= 1
+#             reasons.append("harmonic(-1)")
 
-    # ----------------------------------------------------------------
-    # TRIANGLE
-    # ----------------------------------------------------------------
-    tri = patterns.get("triangle", {})
-    if tri.get("found") and tri.get("breakout", False) and wave:
-        if wave[-1][0] >= (len(df)-max_bars_ago):
-            if tri.get("triangle_type")=="ascending":
-                pattern_score += 1
-                reasons.append("triangle_asc(+1)")
-            elif tri.get("triangle_type")=="descending":
-                pattern_score -= 1
-                reasons.append("triangle_desc(-1)")
-            else:
-                pattern_score += 1
-                reasons.append("triangle_sym(+1)")
+#     # ----------------------------------------------------------------
+#     # TRIANGLE
+#     # ----------------------------------------------------------------
+#     tri = patterns.get("triangle", {})
+#     if tri.get("found") and tri.get("breakout", False) and wave:
+#         if wave[-1][0] >= (len(df)-max_bars_ago):
+#             if tri.get("triangle_type")=="ascending":
+#                 pattern_score += 1
+#                 reasons.append("triangle_asc(+1)")
+#             elif tri.get("triangle_type")=="descending":
+#                 pattern_score -= 1
+#                 reasons.append("triangle_desc(-1)")
+#             else:
+#                 pattern_score += 1
+#                 reasons.append("triangle_sym(+1)")
 
-    # ----------------------------------------------------------------
-    # WEDGE
-    # ----------------------------------------------------------------
-    wd = patterns.get("wedge", {})
-    if wd.get("found") and wd.get("breakout", False) and wave:
-        if wave[-1][0] >= (len(df)-max_bars_ago):
-            if wd.get("wedge_type")=="rising":
-                pattern_score -= 1
-                reasons.append("wedge_rising(-1)")
-            else:
-                pattern_score += 1
-                reasons.append("wedge_falling(+1)")
+#     # ----------------------------------------------------------------
+#     # WEDGE
+#     # ----------------------------------------------------------------
+#     wd = patterns.get("wedge", {})
+#     if wd.get("found") and wd.get("breakout", False) and wave:
+#         if wave[-1][0] >= (len(df)-max_bars_ago):
+#             if wd.get("wedge_type")=="rising":
+#                 pattern_score -= 1
+#                 reasons.append("wedge_rising(-1)")
+#             else:
+#                 pattern_score += 1
+#                 reasons.append("wedge_falling(+1)")
 
-    # ----------------------------------------------------------------
-    # CUP & HANDLE
-    # ----------------------------------------------------------------
-    cup_list = filter_patterns(patterns.get("cup_handle", []))
-    for ch in cup_list:
-        val = +2
-        if ch.get("confirmed"):
-            val += 1
-        pattern_score += val
-        reasons.append(f"cup_handle({val})")
+#     # ----------------------------------------------------------------
+#     # CUP & HANDLE
+#     # ----------------------------------------------------------------
+#     cup_list = filter_patterns(patterns.get("cup_handle", []))
+#     for ch in cup_list:
+#         val = +2
+#         if ch.get("confirmed"):
+#             val += 1
+#         pattern_score += val
+#         reasons.append(f"cup_handle({val})")
 
-    # ----------------------------------------------------------------
-    # FLAG / PENNANT
-    # ----------------------------------------------------------------
-    flag_list = filter_patterns(patterns.get("flag_pennant", []))
-    for fp in flag_list:
-        val = +2
-        if fp.get("confirmed"):
-            val += 1
-        pattern_score += val
-        reasons.append(f"flag_pennant({val})")
+#     # ----------------------------------------------------------------
+#     # FLAG / PENNANT
+#     # ----------------------------------------------------------------
+#     flag_list = filter_patterns(patterns.get("flag_pennant", []))
+#     for fp in flag_list:
+#         val = +2
+#         if fp.get("confirmed"):
+#             val += 1
+#         pattern_score += val
+#         reasons.append(f"flag_pennant({val})")
 
-    # ----------------------------------------------------------------
-    # CHANNEL
-    # ----------------------------------------------------------------
-    chn_list = filter_patterns(patterns.get("channel", []))
-    for cn in chn_list:
-        val = +1
-        ctype = cn.get("channel_type", "")
-        if ctype == "descending":
-            val = -1
-        elif ctype == "horizontal":
-            val = 0
-        pattern_score += val
-        reasons.append(f"channel({val})")
+#     # ----------------------------------------------------------------
+#     # CHANNEL
+#     # ----------------------------------------------------------------
+#     chn_list = filter_patterns(patterns.get("channel", []))
+#     for cn in chn_list:
+#         val = +1
+#         ctype = cn.get("channel_type", "")
+#         if ctype == "descending":
+#             val = -1
+#         elif ctype == "horizontal":
+#             val = 0
+#         pattern_score += val
+#         reasons.append(f"channel({val})")
 
-    # ----------------------------------------------------------------
-    # GANN
-    # ----------------------------------------------------------------
-    gann_info = filter_patterns(patterns.get("gann", {}))
-    #print(gann_info)
-    if isinstance(gann_info, dict):
-        if gann_info.get("found", False):
-            pattern_score += 1
-            reasons.append("gann(+1)")
+#     # ----------------------------------------------------------------
+#     # GANN
+#     # ----------------------------------------------------------------
+#     gann_info = filter_patterns(patterns.get("gann", {}))
+#     #print(gann_info)
+#     if isinstance(gann_info, dict):
+#         if gann_info.get("found", False):
+#             pattern_score += 1
+#             reasons.append("gann(+1)")
 
-    # ----------------------------------------------------------------
-    # ML LABEL => 0=HOLD, 1=BUY, 2=SELL
-    # ----------------------------------------------------------------
-    if ml_label == 1:
-        pattern_score += 3
-        reasons.append("ml_buy")
-    elif ml_label == 2:
-        pattern_score -= 3
-        reasons.append("ml_sell")
+#     # ----------------------------------------------------------------
+#     # ML LABEL => 0=HOLD, 1=BUY, 2=SELL
+#     # ----------------------------------------------------------------
+#     if ml_label == 1:
+#         pattern_score += 3
+#         reasons.append("ml_buy")
+#     elif ml_label == 2:
+#         pattern_score -= 3
+#         reasons.append("ml_sell")
 
-    # ----------------------------------------------------------------
-    # Breakout / Hacim => final_score >0 => potansiyel long => breakout_up => +1
-    # ----------------------------------------------------------------
-    final_score_ = pattern_score
-    if final_score_ > 0:
-        if b_up:
-            final_score_ += 1
-            reasons.append("breakout_up")
-            if v_spike:
-                final_score_ += 1
-                reasons.append("vol_spike_up")
-    elif final_score_ < 0:
-        if b_down:
-            final_score_ -= 1
-            reasons.append("breakout_down")
-            if v_spike:
-                final_score_ -= 1
-                reasons.append("vol_spike_down")
+#     # ----------------------------------------------------------------
+#     # Breakout / Hacim => final_score >0 => potansiyel long => breakout_up => +1
+#     # ----------------------------------------------------------------
+#     final_score_ = pattern_score
+#     if final_score_ > 0:
+#         if b_up:
+#             final_score_ += 1
+#             reasons.append("breakout_up")
+#             if v_spike:
+#                 final_score_ += 1
+#                 reasons.append("vol_spike_up")
+#     elif final_score_ < 0:
+#         if b_down:
+#             final_score_ -= 1
+#             reasons.append("breakout_down")
+#             if v_spike:
+#                 final_score_ -= 1
+#                 reasons.append("vol_spike_down")
 
-    # ----------------------------------------------------------------
-    # RSI/MACD => eğer false ise skoru 1 puan düşür
-    # (Bu basit bir skor düşürme mekanizması; 
-    #  asıl filtreleme "filter_trades_with_indicators" ile daha detaylı yapılabilir)
-    # ----------------------------------------------------------------
-    if check_rsi_macd:
-        if not rsi_macd_signal:
-            final_score_ -= 1
-            reasons.append("rsi_macd_fail")
+#     # ----------------------------------------------------------------
+#     # RSI/MACD => eğer false ise skoru 1 puan düşür
+#     # (Bu basit bir skor düşürme mekanizması; 
+#     #  asıl filtreleme "filter_trades_with_indicators" ile daha detaylı yapılabilir)
+#     # ----------------------------------------------------------------
+#     if check_rsi_macd:
+#         if not rsi_macd_signal:
+#             final_score_ -= 1
+#             reasons.append("rsi_macd_fail")
 
-    # Son Karar
-    final_signal = "HOLD"
-    if final_score_ >= 2:
-        final_signal = "BUY"
-    elif final_score_ <= -2:
-        final_signal = "SELL"
+#     # Son Karar
+#     final_signal = "HOLD"
+#     if final_score_ >= 2:
+#         final_signal = "BUY"
+#     elif final_score_ <= -2:
+#         final_signal = "SELL"
 
-    reason_str = ",".join(reasons) if reasons else "NONE"
+#     reason_str = ",".join(reasons) if reasons else "NONE"
 
-    return {
-        "signal": final_signal,
-        "score": final_score_,
-        "reason": reason_str,
-        "patterns": patterns,
-        "ml_label": ml_label,
-        "breakout_up": b_up,
-        "breakout_down": b_down,
-        "volume_spike": v_spike,
-        "time_frame": time_frame,
-        "pattern_trade_levels": trade_levels
-    }
+#     return {
+#         "signal": final_signal,
+#         "score": final_score_,
+#         "reason": reason_str,
+#         "patterns": patterns,
+#         "ml_label": ml_label,
+#         "breakout_up": b_up,
+#         "breakout_down": b_down,
+#         "volume_spike": v_spike,
+#         "time_frame": time_frame,
+#         "pattern_trade_levels": trade_levels
+#     }
 
 
 ##################################################################
@@ -509,6 +509,18 @@ def measure_pattern_distances(
             gline = gann_data.get("gann_line")
             lvl = parse_line_or_point_local(gline)
             _add_result("gann", 0, "gann_line", lvl, True, gann_data)
+        # ----------------- RECTANGLE (Range) -----------------
+        rect_data = patterns_dict.get("rectangle", {})
+        if isinstance(rect_data, dict):
+            if rect_data.get("found", False):
+                # top_line ve bot_line değerlerini parse edip ekleyelim
+                top_line_val = parse_line_or_point_local(rect_data.get("top_line"))
+                bot_line_val = parse_line_or_point_local(rect_data.get("bot_line"))
+                confirmed = rect_data.get("confirmed", False)
+
+                # measure_pattern_distances fonksiyonundaki `_add_result` çağrısıyla raporlayabilirsiniz
+                _add_result("rectangle", 0, "top_line", top_line_val, confirmed, rect_data)
+                _add_result("rectangle", 0, "bot_line", bot_line_val, confirmed, rect_data)
 
     return results
  
@@ -528,6 +540,7 @@ def filter_confirmed_within_tolerance(distances_list: list) -> dict:
     }
     """
     filtered_map = {}
+
     for d in distances_list:
         pname  = d["pattern"]
         sindex = d.get("sub_index", 0)
@@ -575,6 +588,8 @@ def extract_pattern_trade_levels_filtered(
         "channel": [],
         "gann": []
     }
+
+    pattern_score = 0
 
     def get_col_name(base_col: str, tf: str) -> str:
         return f"{base_col}_{tf}"
@@ -696,7 +711,7 @@ def extract_pattern_trade_levels_filtered(
             stop_loss   = add_atr_above(H_prc)
             distance    = (H_prc - neck_avg)
             take_profit = neck_avg - distance
-
+            pattern_score-=3
             results["head_and_shoulders"].append({
                 "entry_price": entry_price,
                 "stop_loss": stop_loss,
@@ -728,6 +743,7 @@ def extract_pattern_trade_levels_filtered(
         stop_loss   = add_atr_below(H_prc)
         dist        = neck_avg - H_prc
         take_profit = neck_avg + dist
+        pattern_score+=3
 
         results["inverse_head_and_shoulders"].append({
             "entry_price": entry_price,
@@ -764,6 +780,7 @@ def extract_pattern_trade_levels_filtered(
         stop_loss   = add_atr_below(min_bot)
         dist        = neck_val - min_bot
         take_profit = neck_val + dist
+        pattern_score+=1
 
         results["double_bottom"].append({
             "entry_price": entry_price,
@@ -800,6 +817,7 @@ def extract_pattern_trade_levels_filtered(
         stop_loss   = add_atr_above(max_top)
         dist        = max_top - neck_val
         take_profit = neck_val - dist
+        pattern_score-=1
 
         results["double_top"].append({
             "entry_price": entry_price,
@@ -837,6 +855,7 @@ def extract_pattern_trade_levels_filtered(
         stop_loss= add_atr_above(max_top)
         dist= max_top- neck_val
         take_profit= neck_val- dist
+        pattern_score-=1
 
         results["triple_top_advanced"].append({
             "entry_price": entry_price,
@@ -849,31 +868,31 @@ def extract_pattern_trade_levels_filtered(
     # -----------------------------------------------------
     # TRIPLE BOTTOM ADVANCED
     # -----------------------------------------------------
+   # triple_bottom_advanced
     tba_list = patterns_dict.get("triple_bottom_advanced", [])
     tba_need = confirmed_map.get("triple_bottom_advanced", [])
-    if isinstance(tba_list, dict):
-        tba_list = [tba_list]
-
     for i, tba in enumerate(tba_list):
         if i not in tba_need:
             continue
         if not tba.get("confirmed", False):
             continue
 
-        triple_bots= tba.get("bottoms", [])
-        min_bot= min(x[1] for x in triple_bots)
-        neck= tba.get("neckline",(None,None))
-        cbar= last_i
+        triple_bots = tba.get("bottoms", [])
+        min_bot = min(x[1] for x in triple_bots)
+        neck = tba.get("neckline", (None,None))
+        cbar = last_i
 
         if isinstance(neck, tuple) and len(neck)==2:
-            neck_val= neck[1]
+            neck_val = neck[1]
         else:
-            neck_val= current_price
+            neck_val = current_price
 
-        entry_price= get_entry_on_breakout_or_retest(tba, neck_val, cbar, side="long")
-        stop_loss= add_atr_below(min_bot)
-        dist= neck_val- min_bot
-        take_profit= neck_val+ dist
+        # LONG mantık
+        entry_price = get_entry_on_breakout_or_retest(tba, neck_val, cbar, side="long")
+        stop_loss = add_atr_below(min_bot)
+        dist = neck_val - min_bot
+        take_profit = neck_val + dist
+        pattern_score += 1
 
         results["triple_bottom_advanced"].append({
             "entry_price": entry_price,
@@ -909,6 +928,7 @@ def extract_pattern_trade_levels_filtered(
             entry_price = get_close(p4i)
 
             if trend == "UP":
+
                 direction = "LONG"
                 # Stop Loss: en yakın major dip = max(0..4) içinde en dip nokta hangisiyse,
                 # pratikte wave2 veya wave4 pivotu dip olur. Biraz basit yoldan "p2p, p3p, p4p" gibi kıyaslayabiliriz.
@@ -919,6 +939,7 @@ def extract_pattern_trade_levels_filtered(
                 # Take Profit: wave3 genelde en büyük dalga => wave5 de wave3 kadar gidebilir
                 # Basit yaklaşım: p4 + wave3_len
                 take_profit = p4p + wave3_len
+                pattern_score+=1
 
                 # Mantık dışı bir durum olmasın diye kontrol
                 # (Örn. eğer wave3_len = 0'a yakınsa vs.)
@@ -935,6 +956,7 @@ def extract_pattern_trade_levels_filtered(
 
                 # Take Profit: p4 - wave3 uzunluğu (veya p4'ün bar closu - wave3).
                 take_profit = p4p - wave3_len
+                pattern_score-=1
 
                 # Mantık dışı durum kontrolü
                 if take_profit >= entry_price:
@@ -992,10 +1014,14 @@ def extract_pattern_trade_levels_filtered(
             entry_price = get_entry_on_breakout_or_retest_wolfe(wol_data, w5_prc, cbar, side="long")
             stop_loss = add_atr_below(w5_prc)
             take_profit = add_atr_tp_up(entry_price*1.01)
+            pattern_score+=1
+
         else:  # SHORT
             entry_price = get_entry_on_breakout_or_retest_wolfe(wol_data, w5_prc, cbar, side="short")
             stop_loss = add_atr_above(w5_prc)
             take_profit = add_atr_tp_down(entry_price*0.99)
+            pattern_score-=1
+
 
         results["wolfe"].append({
             "entry_price": entry_price,
@@ -1022,6 +1048,8 @@ def extract_pattern_trade_levels_filtered(
         stop_loss= add_atr_below(d_price)
         take_profit= d_price + 2*(last_atr if last_atr else 10)
         direction="LONG"
+        pattern_score+=1
+
         results["harmonic"].append({
             "entry_price": entry_price,
             "stop_loss": stop_loss,
@@ -1044,10 +1072,14 @@ def extract_pattern_trade_levels_filtered(
                 direction="LONG"
                 stop_loss= add_atr_below(current_price)
                 take_profit= current_price + 2*(last_atr if last_atr else 10)
+                pattern_score+=1
+
             elif tri_type=="descending":
                 direction="SHORT"
                 stop_loss= add_atr_above(current_price)
                 take_profit= current_price - 2*(last_atr if last_atr else 10)
+                pattern_score-=1
+
             else:
                 direction=None
             if direction:
@@ -1073,11 +1105,15 @@ def extract_pattern_trade_levels_filtered(
             entry_price= get_entry_on_breakout_or_retest(wedge_data, current_price, cbar, side="short")
             stop_loss= add_atr_above(current_price)
             take_profit= current_price - 2*(last_atr if last_atr else 10)
+            pattern_score-=1
+
         else:
             direction="LONG"
             entry_price= get_entry_on_breakout_or_retest(wedge_data, current_price, cbar, side="long")
             stop_loss= add_atr_below(current_price)
             take_profit= current_price + 2*(last_atr if last_atr else 10)
+            pattern_score+=1
+
 
         results["wedge"].append({
             "entry_price": entry_price,
@@ -1112,6 +1148,8 @@ def extract_pattern_trade_levels_filtered(
         stop_loss= add_atr_below(c_bottom)
         take_profit= rim_val + dist
         direction="LONG"
+        pattern_score+=1
+
 
         results["cup_handle"].append({
             "entry_price": entry_price,
@@ -1133,10 +1171,13 @@ def extract_pattern_trade_levels_filtered(
         if direction=="LONG":
             stop_loss= add_atr_below(current_price)
             take_profit= current_price + 2*(last_atr if last_atr else 10)
+            pattern_score+=1
+
         else:
             stop_loss= add_atr_above(current_price)
             take_profit= current_price - 2*(last_atr if last_atr else 10)
-
+            #pattern_score-=1
+            #direction=="SHORT"                   
         results["flag_pennant"].append({
             "entry_price": entry_price,
             "stop_loss": stop_loss,
@@ -1165,9 +1206,12 @@ def extract_pattern_trade_levels_filtered(
             if direction=="LONG":
                 stop_loss= add_atr_below(current_price)
                 take_profit= current_price + 2*(last_atr if last_atr else 10)
+                pattern_score+=1
             else:
                 stop_loss= add_atr_above(current_price)
                 take_profit= current_price - 2*(last_atr if last_atr else 10)
+                pattern_score-=1
+
 
             results["channel"].append({
                 "entry_price": entry_price,
@@ -1209,11 +1253,15 @@ def extract_pattern_trade_levels_filtered(
                     stop_loss = baseline_stop + sl_atr
                     baseline_tp = entry_price - distance
                     take_profit = baseline_tp - tp_atr
+                    pattern_score-=1
+
                 else:
                     baseline_stop = anchor_price - (distance * 0.2)
                     stop_loss = baseline_stop - sl_atr
                     baseline_tp = entry_price + distance
                     take_profit = baseline_tp + tp_atr
+                    pattern_score+=1
+
             else:
                 distance = anchor_price - entry_price
                 if distance <= 0:
@@ -1223,6 +1271,8 @@ def extract_pattern_trade_levels_filtered(
                     stop_loss = baseline_stop - sl_atr
                     baseline_tp = entry_price + distance
                     take_profit = baseline_tp + tp_atr
+                    pattern_score+=1
+
                 else:
                     baseline_stop = anchor_price + (distance * 0.2)
                     stop_loss = baseline_stop + sl_atr
@@ -1232,6 +1282,8 @@ def extract_pattern_trade_levels_filtered(
             if direction=="LONG":
                 stop_loss  = add_atr_below(entry_price)
                 take_profit= add_atr_tp_up(entry_price*1.02)
+                pattern_score+=1
+
             else:
                 stop_loss  = add_atr_above(entry_price)
                 take_profit= add_atr_tp_down(entry_price*0.98)
@@ -1243,8 +1295,54 @@ def extract_pattern_trade_levels_filtered(
             "direction": direction,
             "pattern_raw": gann_data
         })
+    # -----------------------------------------------------
+    # RECTANGLE
+    # -----------------------------------------------------
+    rect_data = patterns_dict.get("rectangle", {})
+    rect_need = confirmed_map.get("rectangle", [])
+    if rect_data and (0 in rect_need) and rect_data.get("found"):
+        direction = rect_data.get("direction", None)
+        if direction in ("UP","DOWN"):
+            top_line = rect_data.get("top_line")   # ((i1, topPrice),(i2, topPrice))
+            bot_line = rect_data.get("bot_line")   # ((j1, botPrice),(j2, botPrice))
+            confirmed = rect_data.get("confirmed", False)
+            cbar = len(df)-1
+            # basit: bant genişliği
+            if top_line and bot_line:
+                # parse top_line
+                # ((start_bar, topP), (end_bar, topP)) => ortalama top
+                top_val = (top_line[0][1] + top_line[1][1]) / 2
+                bot_val = (bot_line[0][1] + bot_line[1][1]) / 2
+                band_height = top_val - bot_val
 
-    return results
+                # entry
+                if direction=="UP":
+                    side = "long"
+                    entry_price = get_entry_on_breakout_or_retest(rect_data, top_val, cbar, side="long")
+                    stop_loss   = add_atr_below(bot_val)
+                    take_profit = entry_price + band_height
+                    # Kaydedelim
+                    results["rectangle"] = [{
+                        "entry_price": entry_price,
+                        "stop_loss": stop_loss,
+                        "take_profit": take_profit,
+                        "direction": "LONG",
+                        "pattern_raw": rect_data
+                    }]
+                else:  # direction=="DOWN"
+                    side = "short"
+                    entry_price = get_entry_on_breakout_or_retest(rect_data, bot_val, cbar, side="short")
+                    stop_loss   = add_atr_above(top_val)
+                    take_profit = entry_price - band_height
+                    results["rectangle"] = [{
+                        "entry_price": entry_price,
+                        "stop_loss": stop_loss,
+                        "take_profit": take_profit,
+                        "direction": "SHORT",
+                        "pattern_raw": rect_data
+                    }]
+
+    return results,pattern_score
 
 
 ##################################################################
@@ -1351,31 +1449,21 @@ def filter_trades_with_indicators(
 
             # Son bar üzerinden veya pattern'ın confirmed_bar'ı üzerinden
             # indikatör kontrolü yapılabilir.
-            check_res = check_rsi_macd_for_trade(
-                    df,
-                    direction,
-                    bar_index = -1,
-                    rsi_col= rsi_col,
-                    macd_col= macd_col,
-                    macd_signal_col = macd_signal_col,
-                    rsi_upper = 70.0,
-                    rsi_lower = 30.0
-                )
-            # short_signal_rsi_macd_adx_bollinger_volume(df=df,direction=direction,
-            #                                   time_frame= time_frame,
-            #                                   rsi_period = 14,
-            #                                   rsi_overbought= 70.0,
-            #                                   macd_fast = 12,
-            #                                   macd_slow= 26,
-            #                                   macd_signal = 9,
-            #                                   adx_period= 14,
-            #                                   adx_threshold = 25.0,
-            #                                   bb_period= 20,
-            #                                   bb_stddev = 2,
-            #                                   ema_trend_period = 200,
-            #                                   volume_window = 20
-            #                                   )
-            #print(check_res)
+            # check_res = check_rsi_macd_for_trade(
+            #         df,
+            #         direction,
+            #         bar_index = -1,
+            #         rsi_col= rsi_col,
+            #         macd_col= macd_col,
+            #         macd_signal_col = macd_signal_col,
+            #         rsi_upper = 70.0,
+            #         rsi_lower = 30.0
+            #     )
+            check_res= signal_rsi_macd_adx_bollinger_volume(df=df,direction=direction,
+                                              time_frame= time_frame,
+                                           
+                                              )
+            print(check_res)
             if check_res:
 
                 new_list.append(trade)
@@ -1384,187 +1472,254 @@ def filter_trades_with_indicators(
 
     return filtered_results
 
-############################################
-# 2) Strateji Fonksiyonları (Önceden yazdıklarınız)
-############################################
-def short_signal_rsi_macd_adx_bollinger_volume(df: pd.DataFrame,
-                                               direction : str = "LONG",
-                                              time_frame: str="15m",
-                                              rsi_period: int = 14,
-                                              rsi_overbought: float = 70.0,
-                                              macd_fast: int = 12,
-                                              macd_slow: int = 26,
-                                              macd_signal: int = 9,
-                                              adx_period: int = 14,
-                                              adx_threshold: float = 25.0,
-                                              bb_period: int = 20,
-                                              bb_stddev: int = 2,
-                                              ema_trend_period: int = 200,
-                                              volume_window: int = 20
-                                              ) -> pd.DataFrame:
+
+def signal_rsi_macd_adx_bollinger_volume(
+    df: pd.DataFrame,
+    direction: str = "SHORT",
+    time_frame: str = "15m"
+) -> bool:
     """
-    Kısaltılmış açıklamalar...
+    Belirtilen 'time_frame' için, ilgili indikatör parametrelerini 'timeframe_config' sözlüğünden alarak
+    hem SHORT hem LONG sinyallerini üretir. Fonksiyon sonunda 'direction' parametresine göre
+    son barda (iloc[-1]) sinyal var mı yok mu diye True/False döndürür.
+
+    Parametreler:
+      - df (DataFrame): time_frame'e göre 'Close_15m', 'High_15m' vs. kolonları içermeli.
+      - direction (str) : "SHORT" veya "LONG". Son bar için bu yönde sinyal var mı diye bakar.
+      - time_frame (str): "15m", "1h" gibi. timeframe_config sözlüğünde tanımlı olmalı.
+
+    Dönüş:
+      - bool: Son barda istenen yönde sinyal varsa True, yoksa False döndürür.
     """
+
+    # 1) time_frame'e ait parametre setini sözlükten yükleyelim
+    #    Eğer time_frame sözlükte yoksa varsayılan olarak "15m" setini alır
+    config = timeframe_config.get(time_frame, timeframe_config["15m"])
+   
+    # 2) Sözlükten ilgili indikatör parametrelerini çekiyoruz
+    ema_trend_period = config["ema_trend_period"]
+    rsi_period       = config["rsi_period"]
+    rsi_overbought   = config["rsi_overbought"]
+    rsi_oversold     = config["rsi_oversold"]
+    macd_fast        = config["macd_fast"]
+    macd_slow        = config["macd_slow"]
+    macd_signal      = config["macd_signal"]
+    adx_period       = config["adx_period"]
+    adx_threshold    = config["adx_threshold"]
+    bb_period        = config["bb_period"]
+    bb_stddev        = config["bb_stddev"]
+    volume_window    = config["volume_window"]
+    print(ema_trend_period)
+    # 3) DataFrame'i kopyalayalım (orijinali bozmamak için)
     df = df.copy()
 
-    # EMA
-    df[f"EMA_Trend"] = talib.EMA(df[f"Close_{time_frame}"], timeperiod=ema_trend_period)
-    # RSI
-    df[f"RSI"] = talib.RSI(df[f"Close_{time_frame}"], timeperiod=rsi_period)
-    # MACD
+    # ---------------------------------------------------
+    # Göstergeleri hesaplayalım (EMA, RSI, MACD, ADX, BB)
+    # ---------------------------------------------------
+    df[f"EMA_{ema_trend_period}"] = talib.EMA(df[f"Close_{time_frame}"], timeperiod=ema_trend_period)
+
+    df["RSI"] = talib.RSI(df[f"Close_{time_frame}"], timeperiod=rsi_period)
+
     macd_line, macd_signal_line, macd_hist = talib.MACD(
-        df[f"Close_{time_frame}"], fastperiod=macd_fast,
-        slowperiod=macd_slow, signalperiod=macd_signal)
-    df[f"MACD"] = macd_line
-    df[f"MACD_Sig"] = macd_signal_line
-    df[f"MACD_Hist"] = macd_hist
-    # ADX
-    df[f"ADX"]   = talib.ADX(df[f"High_{time_frame}"], df[f"Low_{time_frame}"], df[f"Close_{time_frame}"], timeperiod=adx_period)
-    df[f"+DI"]   = talib.PLUS_DI(df[f"High_{time_frame}"], df[f"Low_{time_frame}"], df[f"Close_{time_frame}"], timeperiod=adx_period)
-    df[f"-DI"]   = talib.MINUS_DI(df[f"High_{time_frame}"], df[f"Low_{time_frame}"], df[f"Close_{time_frame}"], timeperiod=adx_period)
-    # Bollinger
-    bb_up, bb_mid, bb_low = talib.BBANDS(df[f"Close_{time_frame}"], timeperiod=bb_period,
-                                         nbdevup=bb_stddev, nbdevdn=bb_stddev)
+        df[f"Close_{time_frame}"],
+        fastperiod=macd_fast,
+        slowperiod=macd_slow,
+        signalperiod=macd_signal
+    )
+    df["MACD"]      = macd_line
+    df["MACD_Sig"]  = macd_signal_line
+    df["MACD_Hist"] = macd_hist
+
+    df["ADX"] = talib.ADX(
+        df[f"High_{time_frame}"],
+        df[f"Low_{time_frame}"],
+        df[f"Close_{time_frame}"],
+        timeperiod=adx_period
+    )
+    df["+DI"] = talib.PLUS_DI(
+        df[f"High_{time_frame}"],
+        df[f"Low_{time_frame}"],
+        df[f"Close_{time_frame}"],
+        timeperiod=adx_period
+    )
+    df["-DI"] = talib.MINUS_DI(
+        df[f"High_{time_frame}"],
+        df[f"Low_{time_frame}"],
+        df[f"Close_{time_frame}"],
+        timeperiod=adx_period
+    )
+
+    bb_up, bb_mid, bb_low = talib.BBANDS(
+        df[f"Close_{time_frame}"],
+        timeperiod=bb_period,
+        nbdevup=bb_stddev,
+        nbdevdn=bb_stddev
+    )
     df["BB_Up"]  = bb_up
     df["BB_Mid"] = bb_mid
     df["BB_Low"] = bb_low
-    # Volume mean
+
     df["VolumeMean"] = df[f"Volume_{time_frame}"].rolling(window=volume_window).mean()
 
-    # Sinyal alanı
+    # 4) Sinyal kolonları oluşturuyoruz: Hem SHORT hem LONG
     df["ShortSignal"] = False
-    df["SignalReason"] = ""
+    df["LongSignal"]  = False
 
+    # --------------------------------------------------
+    # Barları dolaşarak Short ve Long sinyal koşullarını
+    # ayrı ayrı kontrol edelim.
+    # --------------------------------------------------
     for i in range(1, len(df)):
-        # Trend filtresi
-        in_downtrend = (df[f"Close_{time_frame}"].iloc[i] < df["EMA_Trend"].iloc[i])
-        # RSI filtresi
-        rsi_prev = df[f"OI_RSI_{time_frame}"].iloc[i-1]
-        rsi_curr = df[f"OI_RSI_{time_frame}"].iloc[i]
-        rsi_condition = (rsi_prev >= rsi_overbought) and (rsi_curr < rsi_overbought)
-        # MACD filtresi
+        close_prev = df[f"Close_{time_frame}"].iloc[i-1]
+        close_curr = df[f"Close_{time_frame}"].iloc[i]
+
+        rsi_prev = df["RSI"].iloc[i-1]
+        rsi_curr = df["RSI"].iloc[i]
+
         macd_prev = df["MACD"].iloc[i-1]
         macd_sig_prev = df["MACD_Sig"].iloc[i-1]
         macd_curr = df["MACD"].iloc[i]
         macd_sig_curr = df["MACD_Sig"].iloc[i]
-        macd_condition = (macd_prev > macd_sig_prev) and (macd_curr < macd_sig_curr)
-        # ADX filtresi
-        adx_val = df["ADX"].iloc[i]
-        plus_di = df["+DI"].iloc[i]
+
+        adx_val  = df["ADX"].iloc[i]
+        plus_di  = df["+DI"].iloc[i]
         minus_di = df["-DI"].iloc[i]
-        adx_condition = (adx_val >= adx_threshold) and (minus_di > plus_di)
-        # Bollinger filtresi
-        close_prev = df[f"Close_{time_frame}"].iloc[i-1]
-        close_curr = df[f"Close_{time_frame}"].iloc[i]
-        bb_up_prev = df["BB_Up"].iloc[i-1]
-        bb_up_curr = df["BB_Up"].iloc[i]
-        boll_condition = (close_prev > bb_up_prev) and (close_curr < bb_up_curr)
-        # Volume
-        vol_curr = df[f"Volume_{time_frame}"].iloc[i]
-        vol_mean = df["VolumeMean"].iloc[i]
-        volume_condition = (vol_curr > vol_mean)
 
-        if in_downtrend and rsi_condition and macd_condition and adx_condition:
-            if boll_condition and volume_condition:
-                df.at[i, "ShortSignal"] = True
-                reasons = []
-                reasons.append("TrendFilt")
-                reasons.append("RSI>70->Below")
-                reasons.append("MACD_BearX")
-                reasons.append("ADX_Downtrend")
-                reasons.append("Boll_Reversal")
-                reasons.append("High_Volume")
-                df.at[i, "SignalReason"] = "|".join(reasons)
-    current_signal = df["ShortSignal"].iloc[-1]
-    if direction == "LONG" and current_signal==True:
-        return True
-    elif direction == "SHORT" and current_signal==False:
-        return True
-    return False
+        bb_up_prev  = df["BB_Up"].iloc[i-1]
+        bb_up_curr  = df["BB_Up"].iloc[i]
+        bb_low_prev = df["BB_Low"].iloc[i-1]
+        bb_low_curr = df["BB_Low"].iloc[i]
 
-##################################################################
-# Örnek Kullanım
-##################################################################
-if __name__ == "__main__":
+        volume_curr = df[f"Volume_{time_frame}"].iloc[i]
+        volume_mean = df["VolumeMean"].iloc[i]
 
-    # Sahte bir DataFrame: (Close_1m, RSI, MACD, MACD_Signal, vs.)
-    data = {
-        "Close_1m": [100, 101, 102, 103, 104, 103, 102, 105],
-        "High_1m":  [101, 102, 103, 104, 105, 104, 103, 106],
-        "Low_1m":   [99,  100, 101, 102, 103, 102, 101, 102],
-        "RSI":      [55,  58,  62,  68,  72,  67,  45,  50], 
-        "MACD":     [0.1, 0.2, 0.15, 0.05, -0.05, -0.1, 0.0, 0.1],
-        "MACD_Signal": [0.0, 0.15, 0.16, 0.1, 0.0, -0.05, -0.02, 0.05]
+        # -----------------------
+        # SHORT sinyali koşulları
+        # -----------------------
+        in_downtrend = (close_curr < df[f"EMA_{ema_trend_period}"].iloc[i])  # Fiyat EMA altında
+        rsi_condition_short = (rsi_prev >= rsi_overbought) and (rsi_curr < rsi_overbought)
+        macd_condition_short = (macd_prev > macd_sig_prev) and (macd_curr < macd_sig_curr)
+        adx_condition_short = (adx_val >= adx_threshold) and (minus_di > plus_di)
+        # Bollinger üst bandı test (örnek)
+        boll_condition_short = (close_prev > bb_up_prev) and (close_curr < bb_up_curr)
+        # Hacim
+        volume_condition_short = (volume_curr > volume_mean)
+
+        shortCondition = (
+            in_downtrend and
+            rsi_condition_short and
+            macd_condition_short and
+            adx_condition_short and
+            boll_condition_short and
+            volume_condition_short
+        )
+
+        if shortCondition:
+            df.at[i, "ShortSignal"] = True
+
+        # ----------------------
+        # LONG sinyali koşulları
+        # ----------------------
+        in_uptrend = (close_curr > df[f"EMA_{ema_trend_period}"].iloc[i])  # Fiyat EMA üstünde
+        rsi_condition_long = (rsi_prev <= rsi_oversold) and (rsi_curr > rsi_oversold)
+        macd_condition_long = (macd_prev < macd_sig_prev) and (macd_curr > macd_sig_curr)
+        adx_condition_long = (adx_val >= adx_threshold) and (plus_di > minus_di)
+        # Bollinger alt bandı test (örnek)
+        boll_condition_long = (close_prev < bb_low_prev) and (close_curr > bb_low_curr)
+        # Hacim
+        volume_condition_long = (volume_curr > volume_mean)
+
+        longCondition = (
+            in_uptrend and
+            rsi_condition_long and
+            macd_condition_long and
+            adx_condition_long and
+            boll_condition_long and
+            volume_condition_long
+        )
+
+        if longCondition:
+            df.at[i, "LongSignal"] = True
+
+    # 5) Son bar (iloc[-1]) için direction'a göre True/False dönüyoruz.
+    #    "SHORT" seçildiyse ShortSignal'e,
+    #    "LONG" seçildiyse LongSignal'e bakıyoruz.
+
+    if direction == "SHORT":
+        return bool(df["ShortSignal"].iloc[-1])
+    else:  # direction == "LONG"
+        return bool(df["LongSignal"].iloc[-1])
+
+
+timeframe_config = {
+    "5m": {
+        "ema_trend_period": 50,
+        "rsi_period": 14,
+        "rsi_overbought": 70.0,   # RSI>70 aşırı alım
+        "rsi_oversold": 30.0,     # RSI<30 aşırı satım
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9,
+        "adx_period": 14,
+        "adx_threshold": 20.0,    # 20 üzeri trend gücü
+        "bb_period": 20,
+        "bb_stddev": 2,
+        "volume_window": 20
+    },
+    "15m": {
+        "ema_trend_period": 50,
+        "rsi_period": 14,
+        "rsi_overbought": 70.0,
+        "rsi_oversold": 30.0,
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9,
+        "adx_period": 14,
+        "adx_threshold": 25.0,    # 15m'de biraz daha yüksek eşik
+        "bb_period": 20,
+        "bb_stddev": 2,
+        "volume_window": 20
+    },
+    "1h": {
+        "ema_trend_period": 100,  # 1 saatlik grafikte daha uzun EMA
+        "rsi_period": 14,
+        "rsi_overbought": 70.0,
+        "rsi_oversold": 30.0,
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9,
+        "adx_period": 14,
+        "adx_threshold": 25.0,
+        "bb_period": 20,
+        "bb_stddev": 2,
+        "volume_window": 24       # 24 bar = 1 günün saatleri, örneğin hacim ortalaması
+    },
+    "4h": {
+        "ema_trend_period": 200,  # 4 saatlikte daha da uzun EMA
+        "rsi_period": 14,
+        "rsi_overbought": 70.0,
+        "rsi_oversold": 30.0,
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9,
+        "adx_period": 14,
+        "adx_threshold": 20.0,
+        "bb_period": 20,
+        "bb_stddev": 2,
+        "volume_window": 28       # 4h için ~ 4x7 gün gibi bir yaklaşım
+    },
+    "1d": {
+        "ema_trend_period": 200,  # Günlükte çok daha uzun EMA yaygın
+        "rsi_period": 14,
+        "rsi_overbought": 70.0,
+        "rsi_oversold": 30.0,
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9,
+        "adx_period": 14,
+        "adx_threshold": 20.0,
+        "bb_period": 20,
+        "bb_stddev": 2,
+        "volume_window": 30       # 30 bar = 30 gün (1 ay) hacim ortalaması gibi
     }
-    df_test = pd.DataFrame(data)
-
-    # Diyelim tespit edilmiş patterns_dict (çok basit örnek)
-    patterns_dict_example = {
-        "double_bottom": [
-            {
-                "confirmed": True,
-                "bottoms": [(2, 101), (3, 102)],
-                "neckline": (4, 104),
-                "end_bar": 5
-            }
-        ],
-        "headshoulders": {
-            "confirmed": True,
-            "H": (4, 105),
-            "neckline": ((2, 102),(3, 103)),
-            "confirmed_bar": 5
-        }
-    }
-
-    # 1) measure_pattern_distances
-    current_price = df_test["Close_1m"].iloc[-1]
-    dists = measure_pattern_distances(patterns_dict_example, current_price, tolerance=0.02)
-    print("Distances =>", dists)
-
-    # 2) filter_confirmed_within_tolerance
-    conf_map = filter_confirmed_within_tolerance(dists)
-    print("Confirmed & Tolerated =>", conf_map)
-
-    # 3) extract_pattern_trade_levels_filtered
-    trades = extract_pattern_trade_levels_filtered(
-        patterns_dict_example, 
-        confirmed_map=conf_map,
-        df=df_test,
-        time_frame="1m",
-        atr_period=14,
-        atr_sl_multiplier=1.0,
-        atr_tp_multiplier=1.0,
-        default_break_offset=0.001
-    )
-    print("Trade Levels =>", trades)
-
-    # 4) RSI/MACD filtrelemesi
-    filtered_trades = filter_trades_with_indicators(
-        trades,
-        df_test,
-        rsi_col="RSI",
-        macd_col="MACD",
-        macd_signal_col="MACD_Signal"
-    )
-    print("Filtered Trades =>")
-    for pat_name, tlist in filtered_trades.items():
-        for t in tlist:
-            print(pat_name, t)
-
-    # 5) final_score örneği
-    score_result = final_score(
-        df=df_test,
-        patterns=patterns_dict_example,
-        time_frame="1m",
-        check_rsi_macd=True,   # RSI/MACD skorunu -1 düşürecek mi, vb.
-        v_spike=False,
-        rsi_macd_signal=True,  # Basit bir parametre, True => skoru düşürmeyecek
-        b_up=False,
-        b_down=False,
-        ml_label=0,
-        max_bars_ago=10,
-        wave=[],
-        require_confirmed=True,
-        trade_levels=filtered_trades
-    )
-    print("Final Score =>", score_result)
+}

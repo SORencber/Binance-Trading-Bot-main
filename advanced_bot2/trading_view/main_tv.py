@@ -2,7 +2,7 @@
 from  trading_view.patterns.all_patterns import detect_all_patterns_v2,run_detection_with_filters ,PivotScanner,indicator_checks
 from trading_view.ml_model import PatternEnsembleModel
 import pandas as pd
-from trading_view.helper import filter_trades_with_indicators,final_score,extract_pattern_trade_levels_filtered,measure_pattern_distances,filter_confirmed_within_tolerance
+from trading_view.helper import filter_trades_with_indicators,extract_pattern_trade_levels_filtered,measure_pattern_distances,filter_confirmed_within_tolerance
 
 # Log örneği
 try:
@@ -1076,7 +1076,7 @@ async def generate_signals(
     # Örnek dönüş: { "inverse_headshoulders": [0,1], "double_bottom": [0], ... }
 
     # 5) Yalnızca bu filtreye uyan pattern’lar için trade seviyeleri
-    trades = extract_pattern_trade_levels_filtered(
+    trades,pattern_score = extract_pattern_trade_levels_filtered(
         patterns, 
         confirmed_map=confirmed_map,
         df=df,
@@ -1096,26 +1096,10 @@ async def generate_signals(
         macd_col=get_col_name("MACD", time_frame),
         macd_signal_col=get_col_name("MACDSig", time_frame),
     )
-    #print("Filtered Trades =>",filtered_trades)
-    #for pat_name, tlist in filtered_trades.items():
-        #for t in tlist:
-            #print(pat_name, t)
-
-    # 5) final_score örneği
-    score_result = final_score(
-        df=df,
-        patterns=patterns,
-        time_frame="1m",
-        check_rsi_macd=True,   # RSI/MACD skorunu -1 düşürecek mi, vb.
-        v_spike=False,
-        rsi_macd_signal=True,  # Basit bir parametre, True => skoru düşürmeyecek
-        b_up=False,
-        b_down=False,
-        ml_label=0,
-        max_bars_ago=10,
-        wave=[],
-        require_confirmed=True,
-        trade_levels=filtered_trades
-    )
-    return score_result
-    #print("Final Score =>", score_result)
+   
+    return {
+         "score": pattern_score,   
+         "time_frame": time_frame,
+         "pattern_trade_levels": filtered_trades
+    }
+   
