@@ -933,7 +933,7 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
             "30m": {
-             "left_bars": [5, 15],
+            "left_bars": [5, 15],
             "right_bars": [5, 15],
             "min_distance_bars": [25, 35],
             "shoulder_tolerance": [0.02, 0.05],
@@ -946,41 +946,41 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
         "1h": {
-             "left_bars": [5, 15],
+               "left_bars": [5, 15],
             "right_bars": [5, 15],
-            "min_distance_bars": [20, 40],
-            "shoulder_tolerance": [0.02, 0.04],
+            "min_distance_bars": [25, 35],
+            "shoulder_tolerance": [0.02, 0.05],
             "volume_decline": [True],
             "neckline_break": [True],
-            "max_shoulder_width_bars": [80, 100],
-            "atr_filter": [0.3, 0.6],
-            "check_rsi_macd": [True, False],
+            "max_shoulder_width_bars": [60, 80],
+            "atr_filter": [0.2, 0.5],
+            "check_rsi_macd": [False, True],
             "check_retest": [True],
             "retest_tolerance": [0.015,0.02]
         },
         "4h": {
-              "left_bars": [5, 15],
+               "left_bars": [5, 15],
             "right_bars": [5, 15],
-            "min_distance_bars": [30, 50],
+            "min_distance_bars": [25, 35],
             "shoulder_tolerance": [0.02, 0.05],
             "volume_decline": [True],
             "neckline_break": [True],
-            "max_shoulder_width_bars": [100, 120],
-            "atr_filter": [0.5, 1.0],
-            "check_rsi_macd": [True, False],
+            "max_shoulder_width_bars": [60, 80],
+            "atr_filter": [0.2, 0.5],
+            "check_rsi_macd": [False, True],
             "check_retest": [True],
             "retest_tolerance": [0.015,0.02]
         },
         "1d": {
-             "left_bars": [5, 15],
+               "left_bars": [5, 15],
             "right_bars": [5, 15],
-            "min_distance_bars": [30, 50],
-            "shoulder_tolerance": [0.02, 0.06],
+            "min_distance_bars": [25, 35],
+            "shoulder_tolerance": [0.02, 0.05],
             "volume_decline": [True],
             "neckline_break": [True],
-            "max_shoulder_width_bars": [120, 150],
-            "atr_filter": [1.0, 1.5],
-            "check_rsi_macd": [True, False],
+            "max_shoulder_width_bars": [60, 80],
+            "atr_filter": [0.2, 0.5],
+            "check_rsi_macd": [False, True],
             "check_retest": [True],
             "retest_tolerance": [0.015,0.02]
         }
@@ -1026,8 +1026,8 @@ pattern_param_grids = {
             "check_retest": [True],
             "retest_tolerance": [0.015,0.02]
         },  "30m": {
-            "left_bars": [8, 15, 20],
-            "right_bars": [8, 15, 20],
+               "left_bars": [5, 15],
+            "right_bars": [5, 15],
             "min_distance_bars": [25, 35],
             "shoulder_tolerance": [0.02, 0.05],
             "volume_decline": [True],
@@ -1039,41 +1039,41 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
         "1h": {
-            "left_bars": [15, 20],
-            "right_bars": [15, 20],
-            "min_distance_bars": [20, 40],
-            "shoulder_tolerance": [0.02, 0.04],
+             "left_bars": [5, 15],
+            "right_bars": [5, 15],
+            "min_distance_bars": [25, 35],
+            "shoulder_tolerance": [0.02, 0.05],
             "volume_decline": [True],
             "neckline_break": [True],
-            "max_shoulder_width_bars": [80, 100],
-            "atr_filter": [0.3, 0.6],
+            "max_shoulder_width_bars": [60, 80],
+            "atr_filter": [0.2, 0.5],
             "check_rsi_macd": [False, True],
             "check_retest": [True],
             "retest_tolerance": [0.015,0.02]
         },
         "4h": {
-            "left_bars": [20, 30],
-            "right_bars": [20, 30],
-            "min_distance_bars": [30, 50],
+              "left_bars": [5, 15],
+            "right_bars": [5, 15],
+            "min_distance_bars": [25, 35],
             "shoulder_tolerance": [0.02, 0.05],
             "volume_decline": [True],
             "neckline_break": [True],
-            "max_shoulder_width_bars": [100, 120],
-            "atr_filter": [0.5, 1.0],
+            "max_shoulder_width_bars": [60, 80],
+            "atr_filter": [0.2, 0.5],
             "check_rsi_macd": [False, True],
             "check_retest": [True],
             "retest_tolerance": [0.015,0.02]
         },
         "1d": {
-            "left_bars": [25, 35],
-            "right_bars": [25, 35],
-            "min_distance_bars": [30, 50],
-            "shoulder_tolerance": [0.02, 0.06],
+             "left_bars": [5, 15],
+            "right_bars": [5, 15],
+            "min_distance_bars": [25, 35],
+            "shoulder_tolerance": [0.02, 0.05],
             "volume_decline": [True],
             "neckline_break": [True],
-            "max_shoulder_width_bars": [120, 150],
-            "atr_filter": [1.0, 1.5],
-            "check_rsi_macd": [True],
+            "max_shoulder_width_bars": [60, 80],
+            "atr_filter": [0.2, 0.5],
+            "check_rsi_macd": [False, True],
             "check_retest": [True],
             "retest_tolerance": [0.015,0.02]
         }
@@ -1117,8 +1117,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
         "1h": {
-            "tolerance": [0.01, 0.02],
-            "min_distance_bars": [40, 60],
+             "tolerance": [0.015, 0.02],
+            "min_distance_bars": [30, 40],
             "triple_variation": [True],
             "volume_check": [True],
             "neckline_break": [True],
@@ -1126,8 +1126,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
         "4h": {
-            "tolerance": [0.015, 0.025],
-            "min_distance_bars": [60, 80],
+             "tolerance": [0.015, 0.02],
+            "min_distance_bars": [30, 40],
             "triple_variation": [True],
             "volume_check": [True],
             "neckline_break": [True],
@@ -1135,8 +1135,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
         "1d": {
-            "tolerance": [0.02, 0.03],
-            "min_distance_bars": [80, 100],
+             "tolerance": [0.015, 0.02],
+            "min_distance_bars": [30, 40],
             "triple_variation": [True],
             "volume_check": [True],
             "neckline_break": [True],
@@ -1183,8 +1183,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
         "1h": {
-            "tolerance": [0.01, 0.02],
-            "min_distance_bars": [40, 60],
+         "tolerance": [0.015, 0.02],
+            "min_distance_bars": [30, 40],
             "triple_variation": [True],
             "volume_check": [True],
             "neckline_break": [True],
@@ -1192,8 +1192,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
         "4h": {
-            "tolerance": [0.015, 0.025],
-            "min_distance_bars": [60, 80],
+            "tolerance": [0.015, 0.02],
+            "min_distance_bars": [30, 40],
             "triple_variation": [True],
             "volume_check": [True],
             "neckline_break": [True],
@@ -1201,8 +1201,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.015,0.02]
         },
         "1d": {
-            "tolerance": [0.02, 0.03],
-            "min_distance_bars": [80, 100],
+            "tolerance": [0.015, 0.02],
+            "min_distance_bars": [30, 40],
             "triple_variation": [True],
             "volume_check": [True],
             "neckline_break": [True],
@@ -1249,8 +1249,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.001,0.02]
         },
         "1h": {
-            "tolerance": [0.02, 0.04],
-            "min_distance_bars": [30, 50],
+              "tolerance": [0.02, 0.03],
+            "min_distance_bars": [20, 30],
             "volume_check": [True],
             "volume_col_factor": [0.8],
             "neckline_break": [True],
@@ -1258,8 +1258,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.001,0.02]
         },
         "4h": {
-            "tolerance": [0.03, 0.05],
-            "min_distance_bars": [40, 60],
+              "tolerance": [0.02, 0.03],
+            "min_distance_bars": [20, 30],
             "volume_check": [True],
             "volume_col_factor": [0.8],
             "neckline_break": [True],
@@ -1267,8 +1267,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.001,0.02]
         },
         "1d": {
-            "tolerance": [0.04, 0.06],
-            "min_distance_bars": [50, 80],
+             "tolerance": [0.02, 0.03],
+            "min_distance_bars": [20, 30],
             "volume_check": [True],
             "volume_col_factor": [0.8],
             "neckline_break": [True],
@@ -1315,8 +1315,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.001,0.02]
         },
         "1h": {
-            "tolerance": [0.02, 0.04],
-            "min_distance_bars": [30, 50],
+            "tolerance": [0.02, 0.03],
+            "min_distance_bars": [20, 30],
             "volume_check": [True],
             "volume_col_factor": [0.8],
             "neckline_break": [True],
@@ -1324,8 +1324,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.001,0.02]
         },
         "4h": {
-            "tolerance": [0.03, 0.05],
-            "min_distance_bars": [40, 60],
+            "tolerance": [0.02, 0.03],
+            "min_distance_bars": [20, 30],
             "volume_check": [True],
             "volume_col_factor": [0.8],
             "neckline_break": [True],
@@ -1333,8 +1333,8 @@ pattern_param_grids = {
             "retest_tolerance": [0.001,0.02]
         },
         "1d": {
-            "tolerance": [0.04, 0.06],
-            "min_distance_bars": [50, 80],
+             "tolerance": [0.02, 0.03],
+            "min_distance_bars": [20, 30],
             "volume_check": [True],
             "volume_col_factor": [0.8],
             "neckline_break": [True],
@@ -1443,8 +1443,8 @@ pattern_param_grids = {
             "check_retest": [True],
         },
         "4h": {
-            "wave_min_bars": [20, 30],
-            "fib_tolerance": [0.15, 0.25],
+            "wave_min_bars": [15, 20],
+            "fib_tolerance": [0.1, 0.2],
             "rule_3rdwave_min_percent": [1.618],
             "rule_3rdwave_not_shortest": [True],
             "allow_4th_overlap": [False],
@@ -1458,14 +1458,14 @@ pattern_param_grids = {
             "check_retest": [True],
         },
         "1d": {
-            "wave_min_bars": [25, 40],
-            "fib_tolerance": [0.15, 0.3],
+            "wave_min_bars": [15, 20],
+            "fib_tolerance": [0.1, 0.2],
             "rule_3rdwave_min_percent": [1.618],
             "rule_3rdwave_not_shortest": [True],
             "allow_4th_overlap": [False],
             "allow_wave2_above_wave1_start": [False],
-            "wave2_fib_range": [(0.382, 0.618), (0.382, 0.786)],
-            "wave4_fib_range": [(0.382, 0.618), (0.382, 0.786)],
+            "wave2_fib_range": [(0.382, 0.618)],
+            "wave4_fib_range": [(0.382, 0.618)],
             "check_extended_5th": [True],
             "rule_5thwave_ext_range": [(1.0, 1.618)],
             "check_abc_correction": [True],
@@ -1564,51 +1564,51 @@ pattern_param_grids = {
             "retest_tolerance": [0.001,0.02]
         },
         "5m": {
-            "fib_tolerance": [0.03, 0.04],
-            "patterns": [["gartley","bat","crab"], ["shark","cipher"]],
-            "check_volume": [True],
-            "volume_factor": [1.3, 1.5],
-            "check_retest": [True],
+             "fib_tolerance": [0.02, 0.03],
+            "patterns": [["gartley","bat"], ["crab","butterfly","shark","cipher"]],
+            "check_volume": [False],
+            "volume_factor": [1.2, 1.3],
+            "check_retest": [False],
             "retest_tolerance": [0.001,0.02]
         },
         "15m": {
-            "fib_tolerance": [0.03, 0.05],
-            "patterns": [["butterfly","shark","cipher"], ["gartley","bat","crab"]],
-            "check_volume": [True],
-            "volume_factor": [1.3],
-            "check_retest": [True],
+             "fib_tolerance": [0.02, 0.03],
+            "patterns": [["gartley","bat"], ["crab","butterfly","shark","cipher"]],
+            "check_volume": [False],
+            "volume_factor": [1.2, 1.3],
+            "check_retest": [False],
             "retest_tolerance": [0.001,0.02]
         },
          "30m": {
-            "fib_tolerance": [0.03, 0.05],
-            "patterns": [["butterfly","shark","cipher"], ["gartley","bat","crab"]],
-            "check_volume": [True],
-            "volume_factor": [1.3],
-            "check_retest": [True],
+              "fib_tolerance": [0.02, 0.03],
+            "patterns": [["gartley","bat"], ["crab","butterfly","shark","cipher"]],
+            "check_volume": [False],
+            "volume_factor": [1.2, 1.3],
+            "check_retest": [False],
             "retest_tolerance": [0.001,0.02]
         },
         "1h": {
-            "fib_tolerance": [0.02, 0.03],
-            "patterns": [["bat","butterfly"], ["crab","shark","cipher"]],
-            "check_volume": [True],
-            "volume_factor": [1.5],
-            "check_retest": [True],
+             "fib_tolerance": [0.02, 0.03],
+            "patterns": [["gartley","bat"], ["crab","butterfly","shark","cipher"]],
+            "check_volume": [False],
+            "volume_factor": [1.2, 1.3],
+            "check_retest": [False],
             "retest_tolerance": [0.001,0.02]
         },
         "4h": {
             "fib_tolerance": [0.02, 0.03],
-            "patterns": [["gartley","shark"], ["bat","cipher"]],
-            "check_volume": [True],
-            "volume_factor": [1.5, 1.8],
-            "check_retest": [True],
+            "patterns": [["gartley","bat"], ["crab","butterfly","shark","cipher"]],
+            "check_volume": [False],
+            "volume_factor": [1.2, 1.3],
+            "check_retest": [False],
             "retest_tolerance": [0.001,0.02]
         },
         "1d": {
-            "fib_tolerance": [0.02, 0.04],
-            "patterns": [["gartley","bat","crab","butterfly","shark","cipher"]],
-            "check_volume": [True],
-            "volume_factor": [1.5, 2.0],
-            "check_retest": [True],
+              "fib_tolerance": [0.02, 0.03],
+            "patterns": [["gartley","bat"], ["crab","butterfly","shark","cipher"]],
+            "check_volume": [False],
+            "volume_factor": [1.2, 1.3],
+            "check_retest": [False],
             "retest_tolerance": [0.001,0.02]
         }
     },
@@ -1618,49 +1618,49 @@ pattern_param_grids = {
             "triangle_tolerance": [0.01, 0.02],
             "check_breakout": [True, False],
             "check_retest": [False],
-            "retest_tolerance": [0.001,0.02],
+            "retest_tolerance": [0.01,0.02],
             "triangle_types": [["ascending","descending","symmetrical"]]
         },
         "5m": {
             "triangle_tolerance": [0.02, 0.03],
             "check_breakout": [True],
             "check_retest": [True, False],
-            "retest_tolerance": [0.001,0.02],
+            "retest_tolerance": [0.01,0.02],
             "triangle_types": [["ascending","descending","symmetrical"]]
         },
         "15m": {
             "triangle_tolerance": [0.02, 0.03],
             "check_breakout": [True],
             "check_retest": [True],
-            "retest_tolerance": [0.001,0.02],
+            "retest_tolerance": [0.01,0.02],
             "triangle_types": [["ascending","descending","symmetrical"]]
         },
           "30m": {
             "triangle_tolerance": [0.02, 0.03],
             "check_breakout": [True],
             "check_retest": [True],
-            "retest_tolerance": [0.001,0.02],
+            "retest_tolerance": [0.01,0.02],
             "triangle_types": [["ascending","descending","symmetrical"]]
         },
         "1h": {
             "triangle_tolerance": [0.015, 0.03],
             "check_breakout": [True],
             "check_retest": [True],
-            "retest_tolerance": [0.001,0.02],
+            "retest_tolerance": [0.01,0.02],
             "triangle_types": [["ascending","descending","symmetrical"]]
         },
         "4h": {
             "triangle_tolerance": [0.015, 0.025],
             "check_breakout": [True],
             "check_retest": [True],
-            "retest_tolerance": [0.001,0.02],
+            "retest_tolerance": [0.01,0.02],
             "triangle_types": [["ascending","descending","symmetrical"]]
         },
         "1d": {
             "triangle_tolerance": [0.01, 0.02],
             "check_breakout": [True],
             "check_retest": [True],
-            "retest_tolerance": [0.001,0.02],
+            "retest_tolerance": [0.01,0.02],
             "triangle_types": [["ascending","descending","symmetrical"]]
         }
     },
@@ -2862,6 +2862,284 @@ async def optimize_pattern_parameters(
         "all_results": all_results
     }
 
+import pandas as pd
+import numpy as np
+
+def detect_advanced_pivots(
+    df: pd.DataFrame,
+    price_col: str = "Close",
+    left_bars: int = 2,
+    right_bars: int = 2,
+    amplitude_threshold: float = 0.005,
+    min_bars_between_pivots: int = 5,
+    volume_col: str = None,
+    volume_factor: float = 1.2,  # Pivot bölgesinde ortalama hacme göre artış
+    rsi_period: int = 14,
+    rsi_divergence_check: bool = False,
+    rsi_div_threshold: float = 5.0,   # RSI divergence için esnek eşik
+    pivot_score_min: float = 50.0,    # Toplam skorun altında kalan pivotlar elensin
+    overshadow_factor: float = 1.5,   # Bir pivot, yakında kendisinden 'overshadow_factor' kat büyük pivot varsa elensin
+    merge_close_pivots: bool = True,
+    merge_distance_bars: int = 3,     # Çok yakın pivotları birleştirme bar aralığı
+    merge_distance_price: float = 0.003, # Fiyatta çok yakınsa
+    max_lookback: int = 999999
+) -> list:
+    """
+    Çok yönlü, gelişmiş pivot tespit fonksiyonu.
+    
+    DÖNEN DEĞER:
+    [
+      {
+        'index': pivot_bar_index,
+        'price': pivot_price,
+        'pivot_type': +1 / -1 (tepe / dip),
+        'score': hesaplanan pivot skor,
+        'msgs': [ ... ]
+      },
+      ...
+    ]
+    
+    ADIMLAR:
+    1) Fraktal pivot tespiti (left_bars ve right_bars).
+    2) Amplitude filtresi (yüksekliğin belli eşiğin üstünde olup olmadığı).
+    3) min_bars_between_pivots ile pivotlar arasında en az X bar boşluk sağlama.
+    4) Hacim teyidi (varsa volume_col).
+    5) RSI divergences (opsiyonel).
+    6) Pivot skor hesaplama (yukarıdaki unsurlar).
+    7) overshadow_factor ile büyük pivot yakınındaki küçük pivotu atma.
+    8) Yakın pivotları birleştirme (merge).
+    """
+
+    # ---------------------------
+    # Hazırlık: Kolon Kontrolleri
+    # ---------------------------
+    if price_col not in df.columns:
+        raise ValueError(f"Price column '{price_col}' not found in DataFrame.")
+
+    n = len(df)
+    if n < (left_bars + right_bars + 1):
+        return []  # yeterli veri yok
+
+    # Hacim?
+    if volume_col and volume_col not in df.columns:
+        volume_col = None  # yoksa devre dışı
+
+    # RSI?
+    if rsi_period > 0 and rsi_divergence_check:
+        if "rsi_col" not in df.columns:
+            df["rsi_col"] = compute_rsi(df[price_col], period=rsi_period)
+
+    # -----------------------------------------
+    # 1) Basit Fraktal Pivot Adaylarını Bulma
+    # -----------------------------------------
+    pivot_candidates = []
+    for i in range(left_bars, min(n - right_bars, max_lookback)):
+        # Local window
+        window_left = df[price_col].iloc[i - left_bars : i]
+        window_right = df[price_col].iloc[i + 1 : i + right_bars + 1]
+        curr_price = df[price_col].iloc[i]
+
+        # Tepe (local max) => şimdiki fiyat, sol ve sağdaki tüm fiyatlardan büyük
+        if all(curr_price > x for x in window_left) and all(curr_price > x for x in window_right):
+            pivot_candidates.append({
+                'index': i,
+                'price': curr_price,
+                'pivot_type': +1, # tepe
+                'score': 0.0,
+                'msgs': []
+            })
+        # Dip (local min) => şimdiki fiyat, sol ve sağdaki tüm fiyatlardan küçük
+        elif all(curr_price < x for x in window_left) and all(curr_price < x for x in window_right):
+            pivot_candidates.append({
+                'index': i,
+                'price': curr_price,
+                'pivot_type': -1, # dip
+                'score': 0.0,
+                'msgs': []
+            })
+
+    # -----------------------------------------
+    # 2) Amplitude Filtresi
+    # -----------------------------------------
+    # Pivotun etrafındaki fiyatlarla ortalama farkın amplitude_threshold'u geçip geçmediğini kontrol edebiliriz.
+    # Örneğin basitçe pivot fiyatı ile local mean arasındaki fark.
+    filtered = []
+    for pivot in pivot_candidates:
+        i = pivot['index']
+        local_start = max(0, i - left_bars)
+        local_end = min(n, i + right_bars + 1)
+        local_prices = df[price_col].iloc[local_start:local_end]
+        local_mean = local_prices.mean()
+        diff = abs(pivot['price'] - local_mean) / (local_mean + 1e-9)
+        if diff >= amplitude_threshold:
+            pivot['score'] += (diff * 100)  # amplitude katkısı
+            filtered.append(pivot)
+        else:
+            pivot['msgs'].append(f"Amplitude check failed: {diff:.4f} < {amplitude_threshold}")
+
+    pivot_candidates = filtered
+
+    # -----------------------------------------
+    # 3) Min. bar sayısı (spacing)
+    #    Aynı yönde çok sık pivotlar olmasın diye
+    # -----------------------------------------
+    final_list = []
+    last_pivot_i = -999
+    for pivot in pivot_candidates:
+        i = pivot['index']
+        if (i - last_pivot_i) < min_bars_between_pivots:
+            pivot['msgs'].append(f"Too close to previous pivot. (bar distance={i - last_pivot_i})")
+            continue
+        final_list.append(pivot)
+        last_pivot_i = i
+
+    pivot_candidates = final_list
+
+    # -----------------------------------------
+    # 4) Hacim Teyidi (Var ise)
+    # -----------------------------------------
+    if volume_col:
+        # Ortalama hacim
+        avg_vol = df[volume_col].mean()
+        updated = []
+        for pivot in pivot_candidates:
+            i = pivot['index']
+            pivot_vol = df[volume_col].iloc[i]
+            # Belirli bir oranda büyükse pivot'a ek skor
+            if pivot_vol > volume_factor * avg_vol:
+                pivot['score'] += 10  # örnek +10 puan
+            else:
+                pivot['msgs'].append(f"Volume check < factor: {pivot_vol:.2f} < {volume_factor}*{avg_vol:.2f}")
+            updated.append(pivot)
+        pivot_candidates = updated
+
+    # -----------------------------------------
+    # 5) RSI Divergence (Opsiyonel)
+    #    Örnek: Tepe pivotunda RSI düşük tepe yapıyorsa => negatif uyumsuzluk.
+    #           Dip pivotunda RSI yüksek dip yapıyorsa => pozitif uyumsuzluk.
+    # -----------------------------------------
+    if rsi_divergence_check and "rsi_col" in df.columns:
+        updated = []
+        for pivot in pivot_candidates:
+            i = pivot['index']
+            pivot_type = pivot['pivot_type']
+            pivot_rsi = df["rsi_col"].iloc[i]
+            # Etrafındaki son pivot RSI'si ile karşılaştırma yapabilirsiniz
+            # Basit yaklaşımla, geriye doğru (left_bars) en son benzer pivot tipini bulur vs.
+            # Aşağıda basit bir "yakındaki barların RSI ortalaması" örneği
+            lookback_rsi_slice = df["rsi_col"].iloc[max(0, i-10):i]
+            if len(lookback_rsi_slice) == 0:
+                updated.append(pivot)
+                continue
+
+            prev_rsi_max = lookback_rsi_slice.max()
+            prev_rsi_min = lookback_rsi_slice.min()
+
+            if pivot_type == +1:  # tepe
+                # eğer bu pivotun RSI'si önceki tepe RSI'sından belirgin şekilde düşükse => negatif uyumsuzluk
+                if pivot_rsi < (prev_rsi_max - rsi_div_threshold):
+                    pivot['score'] += 15  # ekstra puan
+                    pivot['msgs'].append(f"RSI negative divergence detected. pivot_rsi={pivot_rsi:.2f} < prev_rsi_max={prev_rsi_max:.2f}")
+            else:  # dip
+                if pivot_rsi > (prev_rsi_min + rsi_div_threshold):
+                    pivot['score'] += 15
+                    pivot['msgs'].append(f"RSI positive divergence detected. pivot_rsi={pivot_rsi:.2f} > prev_rsi_min={prev_rsi_min:.2f}")
+
+            updated.append(pivot)
+        pivot_candidates = updated
+
+    # -----------------------------------------
+    # 6) Pivot Skor Eşiği
+    # -----------------------------------------
+    final_list = []
+    for pivot in pivot_candidates:
+        if pivot['score'] >= pivot_score_min:
+            final_list.append(pivot)
+        else:
+            pivot['msgs'].append(f"Pivot score={pivot['score']:.2f} < pivot_score_min={pivot_score_min}")
+    pivot_candidates = final_list
+
+    # -----------------------------------------
+    # 7) "Overshadow" Filtresi
+    #    Aynı civarda, bir pivotun amplitude veya skorca çok daha büyük olması halinde 
+    #    küçük pivotu atabiliriz.
+    # -----------------------------------------
+    overshadowed = set()
+    for i, p1 in enumerate(pivot_candidates):
+        for j, p2 in enumerate(pivot_candidates):
+            if i == j:
+                continue
+            dist = abs(p1['index'] - p2['index'])
+            if dist < (left_bars + right_bars)*2:  # Yakın pivotlar
+                # Birinin skoru veya tepe/dip amplitude'ı çok yüksekse diğeri "gölge"de kalabilir
+                # Burada basitçe "skor"u kullanıyoruz:
+                if p2['score'] > p1['score'] * overshadow_factor:
+                    overshadowed.add(i)  # p1 gölgelenmiş
+                elif p1['score'] > p2['score'] * overshadow_factor:
+                    overshadowed.add(j)  # p2 gölgelenmiş
+    
+    final_list = []
+    for i, pivot in enumerate(pivot_candidates):
+        if i not in overshadowed:
+            final_list.append(pivot)
+        else:
+            pivot['msgs'].append("Overshadowed by stronger pivot nearby.")
+    pivot_candidates = final_list
+
+    # -----------------------------------------
+    # 8) Yakın pivotları birleştirme (merge)
+    #    Fiyatta ve barda çok yakın pivotlar tek pivot olarak kabul edilebilir.
+    # -----------------------------------------
+    if merge_close_pivots and len(pivot_candidates) > 1:
+        pivot_candidates = sorted(pivot_candidates, key=lambda x: x['index'])
+        merged_list = []
+        skip_next = False
+        for i in range(len(pivot_candidates)):
+            if skip_next:
+                skip_next = False
+                continue
+            if i < len(pivot_candidates) - 1:
+                p1 = pivot_candidates[i]
+                p2 = pivot_candidates[i+1]
+                idx_diff = abs(p1['index'] - p2['index'])
+                price_diff = abs(p1['price'] - p2['price']) / (p1['price'] + 1e-9)
+                # Eğer yeterince yakınsa, birleştirme yap
+                if idx_diff <= merge_distance_bars and price_diff <= merge_distance_price and p1['pivot_type'] == p2['pivot_type']:
+                    # Daha yüksek skorlu pivotu "birleşik pivot" kabul edelim
+                    if p1['score'] >= p2['score']:
+                        merged_list.append(p1)
+                    else:
+                        merged_list.append(p2)
+                    skip_next = True
+                else:
+                    merged_list.append(p1)
+            else:
+                # Son pivot
+                merged_list.append(pivot_candidates[i])
+        pivot_candidates = merged_list
+
+    # -----------------------------------------
+    # Sonuç
+    # -----------------------------------------
+    # index'e göre sıralayalım
+    pivot_candidates = sorted(pivot_candidates, key=lambda x: x['index'])
+    return pivot_candidates
+
+
+# ---------------------------------------------------
+# Yardımcı Fonksiyonlar
+# ---------------------------------------------------
+
+def compute_rsi(series: pd.Series, period: int = 14):
+    """
+    EMA tabanlı basit RSI hesabı.
+    """
+    delta = series.diff()
+    gain = delta.clip(lower=0).ewm(alpha=1/period, adjust=False).mean()
+    loss = -delta.clip(upper=0).ewm(alpha=1/period, adjust=False).mean()
+    rs = gain / (loss + 1e-9)
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
 ##############################################################################
 # 10) PARALEL ÇALIŞMA ÖRNEĞİ (İsteğe Bağlı)

@@ -16,7 +16,7 @@ from portfolio.portfolio_manager import PortfolioManager
 from inference.rl_agent import RLAgent
 from core.trade_logger import append_trade_record, get_last_net_pnl
 import asyncio
-
+from .detect_regime import get_all_regimes,combine_regime_and_pattern_signals,analyze_multi_tf_alignment,produce_realistic_signal
 from trading_view.main_tv import generate_signals # <-- Pattern tespiti fonksiyonlarınızı (detect_elliott vb.) içeren modül
 # Yukarıda 'pattern_lib.generate_signals(df)' demek için, 
 #   en son paylaştığınız "generate_signals" kodunu oraya koyabilirsiniz.
@@ -209,12 +209,13 @@ class TradingViewStrategy(IStrategy):
         df_1h = ctx.df_map.get(symbol, {}).get("1h", None)
         df_4h = ctx.df_map.get(symbol, {}).get("4h", None)
         df_1d = ctx.df_map.get(symbol, {}).get("1d", None)
+        df_1w = ctx.df_map.get(symbol, {}).get("1w", None)
+
         
-       
-        result = await self.send_telegram_messages(price=price,df_5m=df_5m,df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d, ctx=ctx, row_main=row_main, symbol=symbol, regime=regime, force_summary=False)
+        result = await self.send_telegram_messages(price=price,df_5m=df_5m,df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d,df_1w=df_1w, ctx=ctx, row_main=row_main, symbol=symbol, regime=regime, force_summary=False)
         if result:
             mtf_decision, summ_patterns = result
-            print(".....",summ_patterns)
+            #(".....",summ_patterns)
         
             short_closest_entry=summ_patterns["short_closest_entry"]
             short_min_tp=summ_patterns["short_min_tp"]
@@ -280,8 +281,8 @@ class TradingViewStrategy(IStrategy):
         Örnek:
           scenario="TREND_UP" => momentum => eger ensemble=-1 => belki hold? (zayıflat)
         """#        #
-        print(scenario)
-        print(total_score)
+        #print(scenario)
+        #print(total_score)
 
         if scenario=="TREND_UP":
             if total_score>5:
@@ -839,7 +840,7 @@ class TradingViewStrategy(IStrategy):
         return base * mult
 
 
-    async def decide_trade_mtf_with_pattern(self,df_5m,df_15m,df_30m, df_1h, df_4h,df_1d, 
+    async def decide_trade_mtf_with_pattern(self,df_5m,df_15m,df_30m, df_1h, df_4h,df_1d, df_1w,
                      symbol, 
                      min_score=5,
                      retest_tolerance=0.05,
@@ -864,15 +865,49 @@ class TradingViewStrategy(IStrategy):
             ...
         }
         """
+        get_regime_info = get_all_regimes(df_5m=df_5m,df_15m=df_15m,df_30m=df_30m,df_1h=df_1h,df_4h=df_4h,df_1d=df_1d,df_1w=df_1w)
+        regime_info_5m= get_regime_info["5m"]               
+
+        regime_info_15m= get_regime_info["15m"]               
+        regime_info_30m= get_regime_info["30m"]
+        regime_info_1h= get_regime_info["1h"]
+        regime_info_4h= get_regime_info["4h"]
+        regime_info_1d= get_regime_info["1d"]
+        # synergy_intraday = analyze_multi_tf_alignment(get_regime_info, combo_name="intraday")
+        # synergy_scalping = analyze_multi_tf_alignment(get_regime_info, combo_name="scalping")
+        # synergy_swing = analyze_multi_tf_alignment(get_regime_info, combo_name="swing")
+
+        # print(synergy_intraday)
+        # print(synergy_scalping)
+        # print(synergy_swing)
 
         # 1) MTF Sinyal Çağrıları
         sig_5m  =  await generate_signals(df_5m, symbol,time_frame="5m",ml_model=None,max_bars_ago=80, retest_tolerance=0.001, require_confirmed=True)
-        sig_15m =  await generate_signals(df_15m, symbol,time_frame="15m",ml_model=None,max_bars_ago=80, retest_tolerance=0.001, require_confirmed=True)
-        sig_30m =  await generate_signals(df_30m, symbol,time_frame="30m",ml_model=None,max_bars_ago=80,retest_tolerance=0.001,  require_confirmed=True)
-        sig_1h  =  await generate_signals(df_1h, symbol, time_frame="1h", ml_model=None,max_bars_ago=600,retest_tolerance=0.005,  require_confirmed=True)
-        sig_4h  =  await generate_signals(df_4h, symbol, time_frame="4h",ml_model=None ,max_bars_ago=1000, retest_tolerance=0.01, require_confirmed=True)
-        sig_1d  =  await generate_signals(df_1d, symbol, time_frame="1d",ml_model=None ,max_bars_ago=1000, retest_tolerance=0.01, require_confirmed=True)
+        #result_5m=combine_regime_and_pattern_signals(regime_info_5m,sig_5m["pattern_trade_levels"])
 
+        
+        sig_15m =  await generate_signals(df_15m, symbol,time_frame="15m",ml_model=None,max_bars_ago=80, retest_tolerance=0.01, require_confirmed=True)
+       # result_15m=combine_regime_and_pattern_signals(regime_info_15m,sig_15m["pattern_trade_levels"])
+        result_15m=produce_realistic_signal(regime_info_15m,sig_15m["pattern_trade_levels"],"15m", "intraday")
+        
+        sig_30m =  await generate_signals(df_30m, symbol,time_frame="30m",ml_model=None,max_bars_ago=90,retest_tolerance=0.01,  require_confirmed=True)
+        #result_30m=combine_regime_and_pattern_signals(regime_info_30m,sig_30m["pattern_trade_levels"])
+        result_30m= produce_realistic_signal(regime_info_30m,sig_30m["pattern_trade_levels"],"30m", "intraday")
+
+        sig_1h  =  await generate_signals(df_1h, symbol, time_frame="1h", ml_model=None,max_bars_ago=300,retest_tolerance=0.05,  require_confirmed=True)
+       # result_1h=combine_regime_and_pattern_signals(regime_info_1h,sig_1h["pattern_trade_levels"])
+        result_1h=produce_realistic_signal(regime_info_1h,sig_1h["pattern_trade_levels"],"1h", "intraday")
+
+        sig_4h  =  await generate_signals(df_4h, symbol, time_frame="4h",ml_model=None ,max_bars_ago=300, retest_tolerance=0.0, require_confirmed=True)
+       # result_4h=combine_regime_and_pattern_signals(regime_info_4h,sig_4h["pattern_trade_levels"])
+        result_4h=produce_realistic_signal(regime_info_4h,sig_4h["pattern_trade_levels"],"4h", "intraday")
+
+        sig_1d  =  await generate_signals(df_1d, symbol, time_frame="1d",ml_model=None ,max_bars_ago=300, retest_tolerance=0.05, require_confirmed=True)
+        #result_1d=combine_regime_and_pattern_signals(regime_info_1d,sig_1d["pattern_trade_levels"])
+        result_1d=produce_realistic_signal(regime_info_1d,sig_1d["pattern_trade_levels"],"4h", "intraday")
+
+        #print(result_1h["patterns_used"])
+      
         #print(sig_30m)
         score_5m = sig_5m["score"]
         score_15m = sig_15m["score"]
@@ -903,8 +938,6 @@ class TradingViewStrategy(IStrategy):
         
         retest_data = None
     
-       
-        
         return {
             "final_decision": final_decision,
             "score_5m": score_5m,
@@ -915,18 +948,42 @@ class TradingViewStrategy(IStrategy):
             "score_1h":  score_1h,
             "score_4h":  score_4h,
             "score_1d": score_1d,
-            "patterns_5m": sig_5m["pattern_trade_levels"],
+            #"patterns_5m": result_5m["patterns_used"],
 
-            "patterns_15m": sig_15m["pattern_trade_levels"],
+            "patterns_15m": result_15m["patterns_used"],
 
-            "patterns_30m": sig_30m["pattern_trade_levels"],
-            "patterns_1h":  sig_1h["pattern_trade_levels"],
-            "patterns_4h":  sig_4h["pattern_trade_levels"],
-            "patterns_1d":  sig_1d["pattern_trade_levels"],
+            "patterns_30m": result_30m["patterns_used"],
+            "patterns_1h":  result_1h["patterns_used"],
+            "patterns_4h":  result_4h["patterns_used"],
+            "patterns_1d":  result_1d["patterns_used"],
 
-            "retest_info": retest_data,
+            "break_out_note": retest_data,
             "combined_score": combined_score
         }
+
+        
+        # return {
+        #     "final_decision": final_decision,
+        #     "score_5m": score_5m,
+        #                 "score_15m": score_15m,
+
+
+        #     "score_30m": score_30m,
+        #     "score_1h":  score_1h,
+        #     "score_4h":  score_4h,
+        #     "score_1d": score_1d,
+        #     "patterns_5m": sig_5m["pattern_trade_levels"],
+
+        #     "patterns_15m": sig_15m["pattern_trade_levels"],
+
+        #     "patterns_30m": sig_30m["pattern_trade_levels"],
+        #     "patterns_1h":  sig_1h["pattern_trade_levels"],
+        #     "patterns_4h":  sig_4h["pattern_trade_levels"],
+        #     "patterns_1d":  sig_1d["pattern_trade_levels"],
+
+        #     "retest_info": retest_data,
+        #     "combined_score": combined_score
+        # }
 
     async def format_pattern_results(self,mtf_dict: dict) -> str:
         """
@@ -967,17 +1024,17 @@ class TradingViewStrategy(IStrategy):
       
         # Sadece bu TF'leriniz varsa sabit olarak tanımlayabilirsiniz.
         # Yoksa sorted(mtf_dict.keys()) diyerek de sıralayabilirsiniz.
-        timeframes = ["30m","1h","4h","1d"]
+        timeframes = ["15m","30m","1h","4h","1d"]
         
         for tf in timeframes:
             # Her timeframe dictionary'sini al
             tf_data = mtf_dict.get(tf, None)
             if not tf_data:
                 # Pattern listesi yoksa / skip
-                lines.append(f"\n--- {tf} => No pattern data ---")
+                lines.append(f"\n--- {tf} => Desen bulunamadi ---")
                 continue
 
-            lines.append(f"\n--- {tf} Pattern Results ---")
+            lines.append(f"\n--- {tf} Desen Sonuclari ---")
 
             # tf_data: ör. { "double_top": [...], "double_bottom": [...], ... }
             # Her pattern ismi ve listesini dolaşalım:
@@ -995,11 +1052,13 @@ class TradingViewStrategy(IStrategy):
                     sl   = pat.get("stop_loss")
                     tp   = pat.get("take_profit")
                     dire = pat.get("direction", "N/A")
+                    breakout_note   = pat.get("breakout_note")
+
 
                     # pattern_raw içinden ek bilgi istersek:
                     raw  = pat.get("pattern_raw", {})
-                    conf = raw.get("confirmed", False)
-                    patn = raw.get("pattern", "?")
+                    #conf = raw.get("confirmed", False)
+                    #patn = raw.get("pattern", "?")
 
                     # Format -> 2 decimal
                     ep_s  = f"{ep:.2f}" if ep else "N/A"
@@ -1007,12 +1066,13 @@ class TradingViewStrategy(IStrategy):
                     tp_s  = f"{tp:.2f}" if tp else "N/A"
 
                     lines.append(
-                        f"   [{idx}] Dir={dire}, Entry={ep_s}, Stop={sl_s}, TP={tp_s}, "
-                        f"Confirmed={conf}, name={patn}"
-                                        f"----------------\n"
+                    f"<b>[{idx}] YÖN:</b> {dire}- {breakout_note}\n"
+                    f"<b>Giris:</b> {ep_s}\n"
+                    f"<b>Stop-loss:</b> {sl_s}\n"
+                    f"<b>Kâr hedefi:</b> {tp_s}\n"
+                    f"----------------\n"
+                )
 
-                    )
-          
         final_text = "\n".join(lines)
         if not final_text.strip():
             final_text = "No pattern results found."
@@ -1021,42 +1081,33 @@ class TradingViewStrategy(IStrategy):
     # -------------------------------------------------------
     # 1) Pattern Puanlamasını Yapan Fonksiyon
     # -------------------------------------------------------
-    def find_close_patterns(self,results_dict: dict, current_price, lower_threshold=5, upper_threshold=10):
-        """
-        results_dict   : (dict)  Pattern verilerinin tutulduğu sözlük
-        current_price  : (float) Anlık gelen coin fiyatı
-        lower_threshold: (float) Yüzde olarak alt eşik (default=5)
-        upper_threshold: (float) Yüzde olarak üst eşik (default=10)
-        
-        TP değeri ile current_price arasındaki yüzdesel farkın 
-        lower_threshold <= fark <= upper_threshold olduğu pattern’leri
-        puanlayarak döndürür.
-        """
+    def find_close_patterns(self, results_dict: dict, current_price, lower_threshold=5, upper_threshold=10):
         close_patterns = []
+        
+        for timeframe, pattern_list in results_dict.items():
+            # Artık pattern_list bir dict değil, list:
+            if not isinstance(pattern_list, list):
+                # Hata veya uyarı
+                continue
+            
+            for pattern_obj in pattern_list:
+                direction = pattern_obj.get("direction")
+                tp = pattern_obj.get("take_profit")
 
-        for timeframe, pattern_types in results_dict.items():
-            for pattern_type, pattern_list in pattern_types.items():
-                for pattern in pattern_list:
-                    direction = pattern.get("direction")
-                    tp = pattern.get("take_profit")
-
-                    if tp is not None:
-                        fark_yuzdesi = abs(tp - current_price) / current_price * 100
-                        if lower_threshold <= fark_yuzdesi <= upper_threshold:
-                            # Örnek puan hesabı (dilediğiniz gibi değiştirebilirsiniz)
-                            puan = round(upper_threshold - fark_yuzdesi, 2)
-                            
-                            close_patterns.append({
-                                "timeframe": timeframe,
-                                "pattern_type": pattern_type,
-                                "direction": direction,
-                                "take_profit": tp,
-                                "current_price": current_price,
-                                "fark_yuzdesi": round(fark_yuzdesi, 2),
-                                "puan": puan
-                            })
+                if tp is not None:
+                    fark_yuzdesi = abs(tp - current_price) / current_price * 100
+                    if lower_threshold <= fark_yuzdesi <= upper_threshold:
+                        puan = round(upper_threshold - fark_yuzdesi, 2)
+                        close_patterns.append({
+                            "timeframe": timeframe,
+                            "pattern_type": pattern_obj.get("pattern_type"),
+                            "direction": direction,
+                            "take_profit": tp,
+                            "current_price": current_price,
+                            "fark_yuzdesi": round(fark_yuzdesi, 2),
+                            "puan": puan
+                        })
         return close_patterns
-
 
     # -------------------------------------------------------
     # 2) Telegram Mesajlarını Gönderen Fonksiyon
@@ -1071,7 +1122,7 @@ class TradingViewStrategy(IStrategy):
                                      df_15m,
                                      df_30m,df_1h,
                     df_4h,
-                    df_1d, ctx: SharedContext, row_main, symbol, regime, force_summary=False):
+                    df_1d,df_1w, ctx: SharedContext, row_main, symbol, regime, force_summary=False):
         """
         force_summary=True  -> Bilgi mesajını her halükarda gönder.
         force_summary=False -> Son gönderimden bu yana 30 dk geçtiyse gönder, yoksa gönderme.
@@ -1112,25 +1163,38 @@ class TradingViewStrategy(IStrategy):
             ob = row_main.get("Order_Book_Num", 0.0)      # Emir defteri dengesi
             oi_1h = row_main.get("Open_Interest", 0.0)    # 1 saatlik Açık Pozisyon
             close_5m = row_main.get("Close_5m", 0.0)    # Son 30 dak. kapanış
-
+            resistance_15m=row_main.get("Resistance_15m",0.0)
+            support_15m = row_main.get("Support_15m",0.0)
+            resistance_30m=row_main.get("Resistance_30m",0.0)
+            support_30m = row_main.get("Support_30m",0.0)
+            resistance_1h=row_main.get("Resistance_1h",0.0)
+            support_1h = row_main.get("Support_1h",0.0)
+            resistance_4h=row_main.get("Resistance_4h",0.0)
+            support_4h = row_main.get("Support_4h",0.0)
+            resistance_1d=row_main.get("Resistance_1d",0.0)
+            support_1d = row_main.get("Support_1d",0.0)
+   
             # Basit yorumlar/etiketler
             # Order Book Yorumu (OB)
             # "ob" değeri, emir defterinde alıcı ve satıcı yoğunluğunu temsil eder.
             #  - ob > 0  => emir defterinde alıcılar daha baskın (pozitif, yukarı yönlü baskı)
             #  - ob <= 0 => emir defterinde satıcılar daha baskın (negatif, aşağı yönlü baskı)
 
-            if ob <= 0:
-                ob_result = "NEGATİF - Emir defteri satıcı baskılı (düşüş potansiyeli)"
-            else:
-                ob_result = "POZİTİF - Emir defteri alıcı baskılı (yükseliş potansiyeli)"
-                        
+            # if ob <= 0:
+            #     ob_result = "NEGATİF - Emir defteri satıcı baskılı (düşüş potansiyeli)"
+            # else:
+            #     ob_result = "POZİTİF - Emir defteri alıcı baskılı (yükseliş potansiyeli)"
+
+            funding_result=""     
+            fgi_result = ""
+
             if funding :
                 if funding > 0.01:
                     funding_result = "Pozitif (Long'lar ödüyor, short avantajı)"
                 elif funding < -0.01:
                     funding_result = "Negatif (Short'lar ödüyor, long avantajı)"
                 else:
-                    funding_result = "Nötr"
+                    funding_result = "Nötr (Short ve Long lar arasi avantaj yok)"
             # ------------------------------------------
             # Fear & Greed Index (fgi)
             # ------------------------------------------
@@ -1157,47 +1221,50 @@ class TradingViewStrategy(IStrategy):
                     df_30m=df_30m,
                     df_1h=df_1h,
                     df_4h=df_4h,
-                    df_1d=df_1d,
+                    df_1d=df_1d,df_1w=df_1w,
                     symbol=symbol,
                     min_score=5,
                     retest_tolerance=0.005,
                     ctx=ctx
                 )
+            
             final_act = mtf_decision["final_decision"]
-            retest_info = mtf_decision["retest_info"]
+            #retest_info = mtf_decision["retest_info"]
             
             log_msg = (f"[{symbol}] => final={final_act}, "
                         f"5m={mtf_decision['score_5m']},15m={mtf_decision['score_15m']},30m={mtf_decision['score_30m']},1h={mtf_decision['score_1h']},4h={mtf_decision['score_4h']},1d={mtf_decision['score_1d']}, "
-                        f"combined={mtf_decision['combined_score']}, retest={retest_info}")
+                        f"combined={mtf_decision['combined_score']}")
             log(log_msg, "info")
             try:
                 txt_summary = (
-                f"Symbol: {symbol}\n"
+                f"<b>Coin:</b> {symbol}\n"
+                f"----------------\n"
+                f"<b>son 5 dak. kapanış:</b> {close_5m:.2f}\n"
+                f"----------------\n"
+                f"<b>i̇ndikatör YÖN (1 saat):</b> {regime}\n"
+                f"----------------\n"
+                f"<b>i̇ndikatör ort. destek-direnç (15 dakika):</b> {support_15m:.2f}, {resistance_15m:.2f}\n"
+                f"----------------\n"
+              
+                f"<b>i̇ndikatör ort. destek-direnç (30 dakika):</b> {support_30m:.2f}, {resistance_30m:.2f}\n"
+                f"----------------\n"
+                f"<b>i̇ndikatör ort. destek-direnç (1 saat):</b> {support_1h:.2f}, {resistance_1h:.2f}\n"
+                f"----------------\n"
+                f"<b>i̇ndikatör ort. destek-direnç (4 saat):</b> {support_4h:.2f}, {resistance_4h:.2f}\n"
+                f"----------------\n"
+                f"<b>korku endeksi:</b> {fgi_result} ({fgi:.2f})\n"
+                f"----------------\n"
+                f"<b>Coin haberleri :</b> {news_result} ({news})\n"
+                f"----------------\n"
+                f"<b>Fonlama oranı:</b> {funding:.2f} ({funding_result})\n"
+                f"----------------\n"
+                #f"<b>emir defteri:</b> {ob:.2f} ({ob_result})\n"
+                f"----------------\n"
+                f"<b>1 saatlik açık pozisyon:</b> {oi_1h:.2f}\n"
                 f"----------------\n"
 
-                f"İndikatör (1 saat): {regime}\n"
-                f"----------------\n"
-
-                f"Son 5 dak. Kapanış: {close_5m}\n"
-                                f"----------------\n"
-
-                f"Korku Endeksi: {fgi_result} ({fgi:.2f})\n"             #
-                      f"----------------\n"
-
-                f"Haber Skoru: {news_result} ({news:.2f})\n"
-                                f"----------------\n"
-
-                f"Fonlama Oranı: {funding:.4f} ({funding_result})\n"
-                                f"----------------\n"
-
-                f"Emir Defteri: {ob:.2f} ({ob_result})\n"
-                                f"----------------\n"
-
-                f"1 Saatlik Açık Pozisyon: {oi_1h}\n"
-                                f"----------------\n"
-
-            )
-                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_summary)
+                )
+                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_summary ,parse_mode="HTML")
                 #LAST_SUMMARY_TIME = now  # son gönderim zamanını güncelle
                 await asyncio.sleep(5)
 
@@ -1205,7 +1272,7 @@ class TradingViewStrategy(IStrategy):
         # -------------------------------------------------------------------
         # mtf_decision içinden pattern bilgilerini çekip, results_dict oluşturma
                 results_dict = {
-                    "5m": mtf_decision["patterns_5m"],
+                    #"5m": mtf_decision["patterns_5m"],
 
                     "15m": mtf_decision["patterns_15m"],
 
@@ -1214,10 +1281,11 @@ class TradingViewStrategy(IStrategy):
                     "4h":  mtf_decision["patterns_4h"],
                     "1d":  mtf_decision["patterns_1d"]
                 }
+                
             
                 txt_report = await self.format_pattern_results(results_dict)
 
-                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_report)
+                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_report, parse_mode="HTML")
                 LAST_SUMMARY_TIME = now  # son gönderim zamanını güncelle
                 log(f"Message sent to Telegram:", "info")
                 await asyncio.sleep(5)
@@ -1240,8 +1308,8 @@ class TradingViewStrategy(IStrategy):
                 alert_text += (
                     f"- PRICE: {price}\n"
 
-                    f"- Timeframe: {cp['timeframe']}\n"
-                    f"  Pattern: {cp['pattern_type']}\n"
+                    f"- Zaman araligi: {cp['timeframe']}\n"
+                    f"  Desen: {cp['pattern_type']}\n"
                     f"  Yön: {cp['direction']}\n"
                     f"  TP: {cp['take_profit']}\n"
                     f"  Fark Yüzdesi: {cp['fark_yuzdesi']}%\n"
@@ -1250,7 +1318,7 @@ class TradingViewStrategy(IStrategy):
 
                 )
             try:
-                await telegram_app.bot.send_message(chat_id=chat_id, text=alert_text)
+               pass #await telegram_app.bot.send_message(chat_id=chat_id, text=alert_text, parse_mode="HTML")
             except Exception as e:
                 #log(f"Telegram send error (Alert): {e}", "error")
                 log(f"[Telegram send error (Alert): => {e}\n{traceback.format_exc()}", "error")
@@ -1263,7 +1331,7 @@ class TradingViewStrategy(IStrategy):
         # SHORT & LONG pattern lists
         short_patterns = []
         long_patterns  = []
-        print(results_dict)
+        #print(results_dict)
         
         # Iterate over each timeframe's dictionary
         for timeframe, patterns_by_type in results_dict.items():

@@ -18,7 +18,7 @@ from .tf_indicators import (
     calculate_indicators_30m,
     calculate_indicators_1h,
     calculate_indicators_4h,
-    calculate_indicators_1d,
+    calculate_indicators_1d,calculate_indicators_1w,
     add_oi_indicators,holy_grail_all_timeframes,
     analyze_trends_and_signals_v6
 )
@@ -36,15 +36,17 @@ async def fetch_klines(client_async: AsyncClient, symbol: str, timeframe, candle
    
             # Veri süresi hesaplama
     data_duration = (
-                f"{candle_count * 1} minutes ago UTC" if timeframe == "1m" else
-                f"{candle_count * 5} minutes ago UTC" if timeframe == "5m" else
-                f"{candle_count * 10} minutes ago UTC" if timeframe == "10m" else
-                f"{candle_count * 15} minutes ago UTC" if timeframe == "15m" else
-                f"{candle_count * 30} minutes ago UTC" if timeframe == "30m" else             
-                f"{candle_count} hours ago UTC" if timeframe == "1h" else
-                f"{candle_count * 4} hours ago UTC" if timeframe == "4h" else
-                f"{candle_count} days ago UTC"
-            ) 
+        f"{candle_count} minutes ago UTC" if timeframe == "1m" else
+        f"{candle_count * 5} minutes ago UTC" if timeframe == "5m" else
+        f"{candle_count * 15} minutes ago UTC" if timeframe == "15m" else
+        f"{candle_count * 30} minutes ago UTC" if timeframe == "30m" else
+        f"{candle_count} hours ago UTC"        if timeframe == "1h" else
+        f"{candle_count * 4} hours ago UTC"    if timeframe == "4h" else
+        f"{candle_count} days ago UTC"         if timeframe == "1d" else
+        f"{candle_count * 7} days ago UTC"     if timeframe == "1w" else
+        ...
+    )
+
     klines =await  client_async.get_historical_klines(symbol, timeframe, data_duration)  
     print(f"[DEBUG] fetch_klines => raw klines len={len(klines)}")
 
@@ -454,6 +456,26 @@ def load_and_calc_1d(csv_path_1d: str) -> pd.DataFrame:
     
     return df_1d
 
+def load_and_calc_1w(csv_path_1w: str) -> pd.DataFrame:
+    df_1w = pd.read_csv(csv_path_1w, parse_dates=["timestamp"])
+    df_1w.sort_values("timestamp", inplace=True)
+    df_1w.reset_index(drop=True, inplace=True)
+
+    # Haftalık indikatör hesaplamalarınız (ör: RSI, EMA, vb.)
+    df_1w = calculate_indicators_1w(df_1w)  # Kendi oluşturduğunuz fonksiyon
+
+    # Sütun isimlerine "_1w" eki eklemek isterseniz:
+    old_cols = df_1w.columns
+    new_cols = []
+    for c in old_cols:
+        if c == "timestamp":
+            new_cols.append(c)
+        else:
+            new_cols.append(c + "_1w")
+    df_1w.columns = new_cols
+
+    return df_1w
+
 def merge_all_tfs(
     df_1m: pd.DataFrame,
     df_5m: pd.DataFrame,
@@ -461,7 +483,8 @@ def merge_all_tfs(
     df_30m: pd.DataFrame,
     df_1h: pd.DataFrame,
     df_4h: pd.DataFrame,
-    df_1d: pd.DataFrame
+    df_1d: pd.DataFrame,    df_1w: pd.DataFrame
+
 ) -> pd.DataFrame:
     # Sort by timestamp
     df_1m.sort_values("timestamp", inplace=True)
@@ -471,6 +494,8 @@ def merge_all_tfs(
     df_1h.sort_values("timestamp", inplace=True)
     df_4h.sort_values("timestamp", inplace=True)
     df_1d.sort_values("timestamp", inplace=True)
+    df_1w.sort_values("timestamp", inplace=True)
+
     
     # 1m + 5m
     df_m5 = pd.merge_asof(
@@ -513,12 +538,19 @@ def merge_all_tfs(
         suffixes=("", "_4h")
     )
     # (df_m4h) + 1d
-    df_final = pd.merge_asof(
+    df_m1d = pd.merge_asof(
         df_m4h,
         df_1d,
         on="timestamp",
         direction="backward",
         suffixes=("", "_1d")
+    )
+    df_final = pd.merge_asof(
+        df_m1d,
+        df_1w,
+        on="timestamp",
+        direction="backward",
+        suffixes=("", "_1w")
     )
 
     df_final.reset_index(drop=True, inplace=True)
@@ -639,7 +671,10 @@ async def loop_data_collector(ctx: SharedContext, strategy):
                 # 7) CSV update => 1d
                 csv_1d_path = f"data_storage/{s}_1d.csv"
                 df_1d = await update_klines_csv(ctx.client_async, s, "1d", csv_1d_path, max_rows=1000)
-
+               
+                csv_1w_path = f"data_storage/{s}_1w.csv"
+                await update_klines_csv(ctx.client_async, s, "1w", csv_1w_path, max_rows=1000)
+               
                 # 8) Şimdi CSV'lerden oku + indikatör hesapla + rename
                 df_1m_ind  = load_and_calc_1m(csv_1m_path)
                 df_5m_ind  = load_and_calc_5m(csv_5m_path)
@@ -648,6 +683,7 @@ async def loop_data_collector(ctx: SharedContext, strategy):
                 df_1h_ind  = load_and_calc_1h(csv_1h_path)
                 df_4h_ind  = load_and_calc_4h(csv_4h_path)
                 df_1d_ind  = load_and_calc_1d(csv_1d_path)
+                df_1w_ind  = load_and_calc_1w(csv_1w_path)
 
                 # 9) MTF merge => 1m bazlı final
                 df_final = merge_all_tfs(
@@ -657,7 +693,7 @@ async def loop_data_collector(ctx: SharedContext, strategy):
                     df_30m_ind,
                     df_1h_ind,
                     df_4h_ind,
-                    df_1d_ind
+                    df_1d_ind,df_1w_ind
                 )
                 #print("df_final---->",df_final.shape)
                 #print(df_final[['timestamp', 'Close_1m','Close_5m','Close_15m','Close_30m','Close_1h', 'Close_4h','Close_1d']].tail(240))
@@ -709,6 +745,8 @@ async def loop_data_collector(ctx: SharedContext, strategy):
                 ctx.df_map[s]["1h"] = df_1h_ind
                 ctx.df_map[s]["4h"] = df_4h_ind
                 ctx.df_map[s]["1d"] = df_1d_ind
+                ctx.df_map[s]["1w"] = df_1w_ind
+
 
 
 

@@ -1088,18 +1088,18 @@ async def generate_signals(
     )
     #print(trades)
    # 4) RSI/MACD filtrelemesi
-    filtered_trades = filter_trades_with_indicators(
-        trades,
-        df,
-        time_frame,
-        rsi_col=get_col_name("RSI", time_frame),
-        macd_col=get_col_name("MACD", time_frame),
-        macd_signal_col=get_col_name("MACDSig", time_frame),
-    )
+    # filtered_trades = filter_trades_with_indicators(
+    #     trades,
+    #     df,
+    #     time_frame,
+    #     rsi_col=get_col_name("RSI", time_frame),
+    #     macd_col=get_col_name("MACD", time_frame),
+    #     macd_signal_col=get_col_name("MACDSig", time_frame),
+    # )
    
     return {
          "score": pattern_score,   
          "time_frame": time_frame,
-         "pattern_trade_levels": filtered_trades
+         "pattern_trade_levels": trades
     }
    

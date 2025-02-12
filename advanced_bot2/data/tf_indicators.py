@@ -149,7 +149,27 @@ INDICATOR_CONFIG = {
         "T3_period": 9,
         "T3_vfactor": 0.7
     },
-    "1d": {
+    "1w": {
+        "RSI": 14,
+        "ADX": 14,
+        "ATR": 21,
+        "BOLL_period": 20,
+        "BOLL_stddev": 2,
+        "MACD_fast": 12,
+        "MACD_slow": 26,
+        "MACD_signal": 9,
+        "STOCH_fastk": 5,
+        "STOCH_slowk": 3,
+        "STOCH_slowd": 3,
+        "ICHIMOKU_tenkan": 9,
+        "ICHIMOKU_kijun": 26,
+        "ICHIMOKU_spanB": 52,
+        "SUPER_period": 7,
+        "SUPER_multiplier": 3,
+        "VORTEX_period": 14,
+        "T3_period": 9,
+        "T3_vfactor": 0.7
+    },  "1d": {
         "RSI": 14,
         "ADX": 14,
         "ATR": 21,
@@ -1604,6 +1624,172 @@ def calculate_indicators_1d(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+
+
+def calculate_indicators_1w(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    1 günlük veri, config => RSI(14), ADX(14), ATR(21) + full set 
+    (fibo, pivot, cmo, stochRSI, MVRV, Candle Patterns, Heikin, SuperTrend, T3, 
+     Vortex, MACD, Boll vs.).
+    """
+    cfg = INDICATOR_CONFIG["1w"]
+    df = df.copy()
+
+    high = df["High"]
+    low  = df["Low"]
+    close= df["Close"]
+    vol  = df["Volume"]
+    open_= df["Open"]
+    add_oi_indicators(
+        df,
+        "1w",
+        14,
+        20,
+        2,
+         10)
+    # 1) RSI, ADX, ATR
+    df["RSI_1w"] = talib.RSI(close, timeperiod=cfg["RSI"])
+    df["ADX_1w"] = talib.ADX(high, low, close, timeperiod=cfg["ADX"])
+    df["ATR_1w"] = talib.ATR(high, low, close, timeperiod=cfg["ATR"])
+
+    # 2) MACD
+    macd, macd_signal, macd_hist = talib.MACD(
+        close,
+        fastperiod=cfg["MACD_fast"],
+        slowperiod=cfg["MACD_slow"],
+        signalperiod=cfg["MACD_signal"]
+    )
+    df["MACD_1w"]     = macd
+    df["MACDSig_1w"]  = macd_signal
+    df["MACDHist_1w"] = macd_hist
+
+    # 3) Bollinger
+    up, mid, lw = talib.BBANDS(
+        close,
+        timeperiod=cfg["BOLL_period"],
+        nbdevup=cfg["BOLL_stddev"],
+        nbdevdn=cfg["BOLL_stddev"]
+    )
+    df["BBUp_1w"]  = up
+    df["BBMid_1w"] = mid
+    df["BBLow_1w"] = lw
+
+    # 4) Stoch
+    slowk, slowd = talib.STOCH(
+        high, low, close,
+        fastk_period=cfg["STOCH_fastk"],
+        slowk_period=cfg["STOCH_slowk"],
+        slowd_period=cfg["STOCH_slowd"]
+    )
+    df["StochK_1w"] = slowk
+    df["StochD_1w"] = slowd
+
+    # 5) Ichimoku
+    tenkan_high = high.rolling(window=cfg["ICHIMOKU_tenkan"]).max()
+    tenkan_low  = low.rolling(window=cfg["ICHIMOKU_tenkan"]).min()
+    df["Ichi_Tenkan_1w"] = (tenkan_high + tenkan_low)/2
+
+    kijun_high = high.rolling(window=cfg["ICHIMOKU_kijun"]).max()
+    kijun_low  = low.rolling(window=cfg["ICHIMOKU_kijun"]).min()
+    df["Ichi_Kijun_1w"] = (kijun_high + kijun_low)/2
+
+    span_a = (df["Ichi_Tenkan_1w"] + df["Ichi_Kijun_1w"])/2
+    df["Ichi_SpanA_1w"] = span_a.shift(cfg["ICHIMOKU_kijun"])
+
+    spb_high = high.rolling(window=cfg["ICHIMOKU_spanB"]).max()
+    spb_low  = low.rolling(window=cfg["ICHIMOKU_spanB"]).min()
+    df["Ichi_SpanB_1w"] = ((spb_high + spb_low)/2).shift(cfg["ICHIMOKU_kijun"])
+
+    # 6) SuperTrend
+    std_ = supertrend(df, period=cfg["SUPER_period"], multiplier=cfg["SUPER_multiplier"])
+    df["SuperTrend_1w"] = std_["SuperTrend"]
+    df["SuperTD_1w"]    = std_["SuperTrend_Direction"]
+
+    # 7) Vortex
+    vi_ = vortex_indicator(df, period=cfg["VORTEX_period"])
+    df["VI+_1w"] = vi_["VI+"]
+    df["VI-_1w"] = vi_["VI-"]
+
+    # 8) T3
+    df["T3_1w"] = T3_moving_average(close, period=cfg["T3_period"], v_factor=cfg["T3_vfactor"])
+
+    # 9) Heikin-Ashi
+    ha1w = heikin_ashi(df)
+    df["HA_Open_1w"]  = ha1w["HA_Open"]
+    df["HA_Close_1w"] = ha1w["HA_Close"]
+    df["HA_High_1w"]  = ha1w["HA_High"]
+    df["HA_Low_1w"]   = ha1w["HA_Low"]
+    df["HA_Trend_1w"] = ha1w["HA_Trend"]
+
+    # 10) StochRSI
+    rsi_ = talib.RSI(close, 14)
+    stoch_rsi = (rsi_ - rsi_.rolling(14).min()) / (rsi_.rolling(14).max() - rsi_.rolling(14).min() +1e-9)
+    df["StochRSI_1w"] = stoch_rsi
+
+    # 11) CMO
+    df["CMO_1w"] = talib.CMO(close, timeperiod=14)
+
+    # 12) OBV, CMF
+    df["OBV_1w"] = talib.OBV(close, vol)
+    cmf_val = ((2*close - high - low)/(high - low+1e-9)) * vol
+    df["CMF_1w"] = cmf_val.rolling(window=20).mean()
+
+    # 13) Momentum, ROC
+    df["MOM_1w"] = talib.MOM(close, timeperiod=10)
+    df["ROC_1w"] = talib.ROC(close, timeperiod=10)
+
+    # 14) Candle Patterns
+    df["Candle_Body_1w"] = (close - open_).abs()
+    df["Upper_Wick_1w"]  = df[["Close","Open"]].max(axis=1).combine(df["High"], lambda x,y: y - x)
+    df["Lower_Wick_1w"]  = df[["Close","Open"]].min(axis=1) - df["Low"]
+    df["Is_Hammer_1w"]   = ((df["Lower_Wick_1w"] > 2*df["Candle_Body_1w"]) & (df["Upper_Wick_1w"]< df["Candle_Body_1w"])).astype(int)
+
+    # 15) Pivot & Fibo
+    if len(df)>0:
+        last_bar = df.iloc[-1]
+        pivot_ = (last_bar["High"] + last_bar["Low"] + last_bar["Close"])/3
+        df["Pivot_1w"] = pivot_
+    hi_ = df["High"].max()
+    lo_ = df["Low"].min()
+    di_ = hi_ - lo_
+    recent_high = df["High"].iloc[-100:].max()  # Son 100 bar içindeki en yüksek seviye
+    recent_low  = df["Low"].iloc[-100:].min()   # Son 100 bar içindeki en düşük seviye
+    di_ = recent_high - recent_low
+    #df["Fibo_61.8"] = recent_high - di_ * 0.618
+    df["Fibo_23.6"] = recent_high - di_*0.236
+    df["Fibo_38.2"] = recent_high - di_*0.382
+    df["Fibo_61.8"] = recent_high - di_*0.618
+    df['Middle_Band'] = df['Close'].rolling(window=20).mean()
+    df['Upper_Band']  = df['Middle_Band'] + 2 * df['Close'].rolling(window=20).std()
+    df['Lower_Band']  = df['Middle_Band'] - 2 * df['Close'].rolling(window=20).std()
+    df['R1'] = 2 * pivot_ - low
+    df['S1'] = 2 * pivot_ - high
+    df['R2'] = pivot_ + (high - low)
+    df['S2'] = pivot_ - (high - low)
+   # Destek ve direnç seviyelerini birleştir
+    df['Support'] = df[['S1', 'Lower_Band', 'Fibo_61.8']].min(axis=1)
+    df['Resistance'] = df[['R1', 'Upper_Band','Fibo_23.6']].max(axis=1)
+    #print("---------", df['R1'] , df['Upper_Band'], df['Fibo_61.8'])
+    # 16) On-chain sim (MVRV, NVT)
+    df["MarketCap_1w"]   = close*vol
+    df["RealizedCap_1w"] = close*(vol.cumsum()/max(1,len(df)))
+    rolling_std = close.rolling(365).std()
+    df["MVRV_Z_1w"] = (df["MarketCap_1w"] - df["RealizedCap_1w"]) / (rolling_std+1e-9)
+    df["NVT_1w"]    = df["MarketCap_1w"]/(vol+1e-9)
+
+    # 17) future_return + Label
+    df["future_ret_1w"] = (close.shift(-1) - close)/(close+1e-9)
+    df["Label_1w"]      = (df["future_ret_1w"]>0).astype(int)
+    df['DI_plus_1w'] = talib.PLUS_DI(df['High'], df['Low'], df['Close'], timeperiod=14)
+    df['DI_minus_1w'] = talib.MINUS_DI(df['High'], df['Low'], df['Close'], timeperiod=14)
+    # Momentum
+    df['SMA_20_1w'] = df['Close'].rolling(window=20).mean()
+    df['SMA_50_1w'] = df['Close'].rolling(window=50).mean()
+    df['EMA_20_1w'] = df['Close'].ewm(span=20, adjust=False).mean()
+    holy_grail_all_timeframes(df,"_1w")
+
+    return df
+
 ###############################################################
 # tf_indicators.py - V6 (Gerçekçi Fractal + ATR Renko + MTF)
 ###############################################################
@@ -1689,7 +1875,8 @@ TF_WEIGHTS = {
     "15m": 1.5,
     "1h": 2.0,
     "4h": 2.5,
-    "1d": 3.0
+    "1d": 3.0,
+      "1w": 3.0
 }
 TF_BAR_COUNTS = {
     "1m": 2000,
@@ -1697,7 +1884,8 @@ TF_BAR_COUNTS = {
     "15m": 500,
     "1h": 300,
     "4h": 200,
-    "1d": 100
+    "1d": 100,
+      "1w": 100
 }
 
 def compute_billwilliams_fractals(df: pd.DataFrame, tf:str="1m", confirm_bars: int = 1) -> pd.DataFrame:
