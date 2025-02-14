@@ -27,7 +27,7 @@ class StrategyManager:
 
     async def on_price_update(self, symbol: str, price: float):
         mode = self.ctx.config.get("mode","trading_view")
-        
+        #print("SEMBOLLLLLL",symbol)
         if mode == "trading_view":
             await self.tv_strategy.on_price_update(self.ctx, symbol, price)
      

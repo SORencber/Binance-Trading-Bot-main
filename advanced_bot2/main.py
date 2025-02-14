@@ -121,6 +121,7 @@ async def start_trading(ctx: SharedContext):
 
     # 5) Price readers
     for sym in ctx.config["symbols"]:
+        
         r = asyncio.create_task(realtime_price_reader(ctx, sym, strategy_mgr), name=f"reader_{sym}")
         p = asyncio.create_task(realtime_price_processor(ctx, sym, strategy_mgr), name=f"processor_{sym}")
         tasks_list.extend([r, p])
@@ -134,7 +135,8 @@ async def stop_trading(ctx: SharedContext):
     if not tasks_list:
         log("No trading tasks => skip stop_trading", "info")
         return
-
+    await ctx.client_async.close_connection()
+  
     log("stop_trading => canceling tasks", "info")
     for t in tasks_list:
         if not t.done():

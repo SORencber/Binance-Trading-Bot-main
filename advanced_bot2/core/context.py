@@ -37,7 +37,7 @@ class SymbolState:
 class SharedContext:
     def __init__(self, config: dict):
         self.config = config
-
+        #print(ctx)
         # Kullanıcı verilerini işlemek için kuyruk
         self.user_data_queue = asyncio.Queue()
 
@@ -50,7 +50,8 @@ class SharedContext:
 
         # Sembollerin durumu (SymbolState)
         self.symbol_map: Dict[str, SymbolState] = {}
-        for s in config["symbols"]:
+        for s in self.config["symbols"]:
+            print("context........",s)
             self.symbol_map[s] = SymbolState(s)
 
         # Fiyatların asenkron kuyruğu (her sembol için)

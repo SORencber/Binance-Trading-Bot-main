@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from core.logging_setup import log
 from core.trade_logger import get_last_net_pnl
-
+from core.context import SymbolState
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /start => hoşgeldin mesajı
@@ -73,7 +73,6 @@ async def setsymbol_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id not in shared_ctx.config.get("allowed_user_ids",[]):
         await update.message.reply_text("Unauthorized.")
         return
-
     tokens = update.message.text.split()
     if len(tokens) < 2:
         await update.message.reply_text("Usage: /setsymbol SYMBOL")
@@ -84,14 +83,17 @@ async def setsymbol_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 1) (Opsiyonel) Trading'i durdur
     from main import stop_trading, start_trading  # Örnek, proje yapınıza göre
     await stop_trading(shared_ctx)
-
     await update.message.reply_text("Trading tasks paused.")
 
     # 2) Symbol listeyi temizle => yeni sembol ekle
     shared_ctx.config["symbols"] = [new_sym]
-    if new_sym in shared_ctx.config["symbols"]:
-        await update.message.reply_text(f"{new_sym} is already in the list.")
-        return
+    shared_ctx.config["command_source"] = "telegram"
+
+    # **Burada symbol_map'i sıfırlıyoruz**
+    shared_ctx.symbol_map = {sym: SymbolState(sym) for sym in shared_ctx.config["symbols"]}
+    
+    print("Yeni semboller:", shared_ctx.symbol_map.keys())  # Debug için
+
     # 3) Tekrar trading başlat
     await start_trading(shared_ctx)
     await update.message.reply_text("Trading tasks resumed.")

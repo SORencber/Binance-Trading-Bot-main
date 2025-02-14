@@ -24,7 +24,7 @@ from datetime import datetime
 import time
 import traceback
 LAST_SUMMARY_TIME = 0  # Son summary gönderim zamanı (timestamp)
-SUMMARY_INTERVAL = 1800  # 30 dakika = 1800 sn
+SUMMARY_INTERVAL = 3600  # 30 dakika = 1800 sn
 
 class TradingViewStrategy(IStrategy):
     """
@@ -147,7 +147,6 @@ class TradingViewStrategy(IStrategy):
 
         row_main = df_main.iloc[-1]
         st = ctx.symbol_map[symbol]
-
         # MTF & RL 
         regime = self.detect_regime(row_main, symbol)
         base_p = ctx.param_for_regime.get(regime, ctx.param_for_regime["DEFAULT"])
@@ -211,8 +210,15 @@ class TradingViewStrategy(IStrategy):
         df_1d = ctx.df_map.get(symbol, {}).get("1d", None)
         df_1w = ctx.df_map.get(symbol, {}).get("1w", None)
 
+        force_summary=False
+        command_source=ctx.config["command_source"]
+        if command_source=="telegram": 
+            force_summary=True
+            ctx.config["command_source"]="app"
+
+
+        result = await self.send_telegram_messages(price=price,df_5m=df_5m,df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d,df_1w=df_1w, ctx=ctx, row_main=row_main, symbol=symbol, regime=regime, force_summary=force_summary)
         
-        result = await self.send_telegram_messages(price=price,df_5m=df_5m,df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d,df_1w=df_1w, ctx=ctx, row_main=row_main, symbol=symbol, regime=regime, force_summary=False)
         if result:
             mtf_decision, summ_patterns = result
             #(".....",summ_patterns)
@@ -873,9 +879,19 @@ class TradingViewStrategy(IStrategy):
         regime_info_1h= get_regime_info["1h"]
         regime_info_4h= get_regime_info["4h"]
         regime_info_1d= get_regime_info["1d"]
-        # synergy_intraday = analyze_multi_tf_alignment(get_regime_info, combo_name="intraday")
-        # synergy_scalping = analyze_multi_tf_alignment(get_regime_info, combo_name="scalping")
-        # synergy_swing = analyze_multi_tf_alignment(get_regime_info, combo_name="swing")
+        synergy_intraday = analyze_multi_tf_alignment(get_regime_info, combo_name="intraday")
+        synergy_scalping = analyze_multi_tf_alignment(get_regime_info, combo_name="scalping")
+        synergy_swing = analyze_multi_tf_alignment(get_regime_info, combo_name="swing")
+        synergy_position = analyze_multi_tf_alignment(get_regime_info, combo_name="position")
+
+       # final_side = synergy_intraday["final_side"]
+       # score_details = synergy_intraday["score_details"]
+       # break_out_note = synergy_intraday["break_out_note"]
+        #total_score = synergy_intraday["total_score"]
+        #main_regime = synergy_intraday["main_regime"]
+        #patterns_used = synergy_intraday["patterns_used"]
+       # alignment = synergy_intraday["alignment"]
+       # print(synergy_intraday["alignment"])
 
         # print(synergy_intraday)
         # print(synergy_scalping)
@@ -886,23 +902,23 @@ class TradingViewStrategy(IStrategy):
         #result_5m=combine_regime_and_pattern_signals(regime_info_5m,sig_5m["pattern_trade_levels"])
 
         
-        sig_15m =  await generate_signals(df_15m, symbol,time_frame="15m",ml_model=None,max_bars_ago=80, retest_tolerance=0.01, require_confirmed=True)
+        sig_15m =  await generate_signals(df_15m, symbol,time_frame="15m",ml_model=None,max_bars_ago=80, retest_tolerance=0.005, require_confirmed=True)
        # result_15m=combine_regime_and_pattern_signals(regime_info_15m,sig_15m["pattern_trade_levels"])
         result_15m=produce_realistic_signal(regime_info_15m,sig_15m["pattern_trade_levels"],"15m", "intraday")
         
-        sig_30m =  await generate_signals(df_30m, symbol,time_frame="30m",ml_model=None,max_bars_ago=90,retest_tolerance=0.01,  require_confirmed=True)
+        sig_30m =  await generate_signals(df_30m, symbol,time_frame="30m",ml_model=None,max_bars_ago=90,retest_tolerance=0.005,  require_confirmed=True)
         #result_30m=combine_regime_and_pattern_signals(regime_info_30m,sig_30m["pattern_trade_levels"])
         result_30m= produce_realistic_signal(regime_info_30m,sig_30m["pattern_trade_levels"],"30m", "intraday")
 
-        sig_1h  =  await generate_signals(df_1h, symbol, time_frame="1h", ml_model=None,max_bars_ago=300,retest_tolerance=0.05,  require_confirmed=True)
+        sig_1h  =  await generate_signals(df_1h, symbol, time_frame="1h", ml_model=None,max_bars_ago=300,retest_tolerance=0.01,  require_confirmed=True)
        # result_1h=combine_regime_and_pattern_signals(regime_info_1h,sig_1h["pattern_trade_levels"])
         result_1h=produce_realistic_signal(regime_info_1h,sig_1h["pattern_trade_levels"],"1h", "intraday")
 
-        sig_4h  =  await generate_signals(df_4h, symbol, time_frame="4h",ml_model=None ,max_bars_ago=300, retest_tolerance=0.0, require_confirmed=True)
+        sig_4h  =  await generate_signals(df_4h, symbol, time_frame="4h",ml_model=None ,max_bars_ago=300, retest_tolerance=0.01, require_confirmed=True)
        # result_4h=combine_regime_and_pattern_signals(regime_info_4h,sig_4h["pattern_trade_levels"])
         result_4h=produce_realistic_signal(regime_info_4h,sig_4h["pattern_trade_levels"],"4h", "intraday")
 
-        sig_1d  =  await generate_signals(df_1d, symbol, time_frame="1d",ml_model=None ,max_bars_ago=300, retest_tolerance=0.05, require_confirmed=True)
+        sig_1d  =  await generate_signals(df_1d, symbol, time_frame="1d",ml_model=None ,max_bars_ago=300, retest_tolerance=0.01, require_confirmed=True)
         #result_1d=combine_regime_and_pattern_signals(regime_info_1d,sig_1d["pattern_trade_levels"])
         result_1d=produce_realistic_signal(regime_info_1d,sig_1d["pattern_trade_levels"],"4h", "intraday")
 
@@ -958,7 +974,13 @@ class TradingViewStrategy(IStrategy):
             "patterns_1d":  result_1d["patterns_used"],
 
             "break_out_note": retest_data,
-            "combined_score": combined_score
+            "combined_score": combined_score,
+            "synergy_intraday":synergy_intraday,
+            "synergy_scalping": synergy_scalping ,
+       "synergy_swing": synergy_swing ,
+        "synergy_position" : synergy_position,
+        "get_regime_info":get_regime_info
+
         }
 
         
@@ -985,7 +1007,7 @@ class TradingViewStrategy(IStrategy):
         #     "combined_score": combined_score
         # }
 
-    async def format_pattern_results(self,mtf_dict: dict) -> str:
+    async def format_pattern_results(self,mtf_dict: dict,price) -> str:
         """
         mtf_dict şu formatta bir sözlüktür:
         {
@@ -1048,6 +1070,7 @@ class TradingViewStrategy(IStrategy):
 
                 # Tek tek parse
                 for idx, pat in enumerate(p_list, start=1):
+                    
                     ep   = pat.get("entry_price")
                     sl   = pat.get("stop_loss")
                     tp   = pat.get("take_profit")
@@ -1059,8 +1082,9 @@ class TradingViewStrategy(IStrategy):
                     raw  = pat.get("pattern_raw", {})
                     #conf = raw.get("confirmed", False)
                     #patn = raw.get("pattern", "?")
+                    
 
-                    # Format -> 2 decimal
+                        # Format -> 2 decimal
                     ep_s  = f"{ep:.2f}" if ep else "N/A"
                     sl_s  = f"{sl:.2f}" if sl else "N/A"
                     tp_s  = f"{tp:.2f}" if tp else "N/A"
@@ -1230,7 +1254,13 @@ class TradingViewStrategy(IStrategy):
             
             final_act = mtf_decision["final_decision"]
             #retest_info = mtf_decision["retest_info"]
-            
+            synergy_intraday =mtf_decision["synergy_intraday"]
+            synergy_scalping =mtf_decision["synergy_scalping"]
+            synergy_swing =mtf_decision["synergy_swing"]
+            synergy_position =mtf_decision["synergy_position"]
+
+
+       
             log_msg = (f"[{symbol}] => final={final_act}, "
                         f"5m={mtf_decision['score_5m']},15m={mtf_decision['score_15m']},30m={mtf_decision['score_30m']},1h={mtf_decision['score_1h']},4h={mtf_decision['score_4h']},1d={mtf_decision['score_1d']}, "
                         f"combined={mtf_decision['combined_score']}")
@@ -1238,10 +1268,19 @@ class TradingViewStrategy(IStrategy):
             try:
                 txt_summary = (
                 f"<b>Coin:</b> {symbol}\n"
-                f"----------------\n"
+                # f"----------------\n"
+                # f"<b>Kisa Vadeli Islemler[5 dakika, 15 dakika,  1 saat]:</b> {synergy_scalping}\n"
+                # f"----------------\n"
+                # f"<b>Gün İçi  Islemler[15 dakika, 1 Saat,  4 saat]:</b> {synergy_intraday}\n"
+                # f"----------------\n"
+                # f"<b>Orta Vadeli Islemler[1 saat, 4 Saat,  1 gün]:</b> {synergy_swing}\n"
+                # f"----------------\n"
+                # f"<b>Uzun Vadeli Islemler[1 günlük, 1 Haftalik]:</b> {synergy_position}\n"
+                # f"----------------\n"
+
                 f"<b>son 5 dak. kapanış:</b> {close_5m:.2f}\n"
                 f"----------------\n"
-                f"<b>i̇ndikatör YÖN (1 saat):</b> {regime}\n"
+               # f"<b>i̇ndikatör YÖN (1 saat):</b> {regime}\n"
                 f"----------------\n"
                 f"<b>i̇ndikatör ort. destek-direnç (15 dakika):</b> {support_15m:.2f}, {resistance_15m:.2f}\n"
                 f"----------------\n"
@@ -1264,12 +1303,7 @@ class TradingViewStrategy(IStrategy):
                 f"----------------\n"
 
                 )
-                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_summary ,parse_mode="HTML")
-                #LAST_SUMMARY_TIME = now  # son gönderim zamanını güncelle
-                await asyncio.sleep(5)
-
-        # 2) Pattern Kontrolü
-        # -------------------------------------------------------------------
+                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_summary, parse_mode="HTML")
         # mtf_decision içinden pattern bilgilerini çekip, results_dict oluşturma
                 results_dict = {
                     #"5m": mtf_decision["patterns_5m"],
@@ -1282,10 +1316,49 @@ class TradingViewStrategy(IStrategy):
                     "1d":  mtf_decision["patterns_1d"]
                 }
                 
-            
-                txt_report = await self.format_pattern_results(results_dict)
+                
+                txt_report = await self.format_pattern_results(results_dict,price)
+                from openai import OpenAI
+                import json
+                time_frame_infos=mtf_decision["get_regime_info"]
+                #txt_summary = "Örnek analiz metni"
+                #time_frame_infos = {"trend": "Bullish", "rsi": 70, "macd": "Buy Signal"}  # Örnek dict (seninkine benzer)
+                time_frame_infos_str = json.dumps(time_frame_infos, ensure_ascii=False)  # JSON string formatına çevir
+                
+                prompt = f"Verilen tüm analiz ve pattern sonuclarini birlikte degerlendir ve gercekci bir Short ve Long onerisi yap. {time_frame_infos_str} {txt_report}{txt_summary}"
 
-                await telegram_app.bot.send_message(chat_id=chat_id, text=txt_report, parse_mode="HTML")
+                client = OpenAI(
+                api_key='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',
+                )
+                response_text = ""
+                stream = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content":prompt}],
+                    stream=True,
+                )
+                for chunk in stream:
+                    if chunk.choices[0].delta.content is not None:
+                        print(chunk.choices[0].delta.content, end="")
+                        response_text += chunk.choices[0].delta.content
+                """ChatGPT yanıtını Telegram'a düzgün formatta gönder."""
+                if not response_text:
+                    response_text = "⚠ CinCon yanıt veremedi."
+
+                formatted_text = f"<b>ChatGPT Yorumu:</b>\n\n{response_text}"  # Kalın başlık ekleyerek gönderiyoruz
+
+                # Mesaj uzunluğu 4096 karakteri geçiyorsa bölerek gönder
+                max_length = 4096
+                for i in range(0, len(formatted_text), max_length):
+
+                    await telegram_app.bot.send_message(chat_id=chat_id, text=formatted_text[i:i+max_length], parse_mode="HTML")
+                #LAST_SUMMARY_TIME = now  # son gönderim zamanını güncelle
+                await asyncio.sleep(5)
+
+        # 2) Pattern Kontrolü
+        # -------------------------------------------------------------------
+
+               # print(txt_report)
+                #await telegram_app.bot.send_message(chat_id=chat_id, text=txt_report, parse_mode="HTML")
                 LAST_SUMMARY_TIME = now  # son gönderim zamanını güncelle
                 log(f"Message sent to Telegram:", "info")
                 await asyncio.sleep(5)

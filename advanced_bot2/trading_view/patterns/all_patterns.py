@@ -2585,7 +2585,9 @@ def save_best_params_to_json(symbol: str,
     pattern_name=None => "pivot_strategy"
     """
     if filename is None:
-        filename = f"{symbol.lower()}.json"
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        filename = os.path.join(base_path, '..', 'coins_parameters', f'{symbol.lower()}.json')
+        filename = os.path.abspath(filename)
     if not os.path.exists(filename):
         data = {
             "symbol": symbol,
@@ -2614,13 +2616,25 @@ def load_best_params_from_json(symbol: str,
                                timeframe: str,
                                pattern_name: str = None,
                                filename: str = None) -> dict:
+    base_path = os.path.dirname(os.path.abspath(__file__))
     if filename is None:
-        filename = f"{symbol.lower()}.json"
-    if not os.path.exists(filename):
-        print(f"[load_best_params_from_json] => File '{filename}' not found.")
+        print(base_path)
+        filename = os.path.join(base_path, '..', 'coins_parameters', f'{symbol.lower()}.json')
+        filename = os.path.abspath(filename)
+     
+        if not os.path.exists(filename):
+            print(f"File '{filename}' not found!")
+    
+    #print(filename)
+    filenameX = os.path.join(base_path, '..', 'coins_parameters', filename)
+
+    filenameX = os.path.abspath(filenameX)
+  
+    if not os.path.exists(filenameX):
+        print(f"[load_best_params_from_json] => File '{filenameX}' not found.")
         return None
 
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filenameX, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     tf_data = data.get("time_frames", {}).get(timeframe, {})

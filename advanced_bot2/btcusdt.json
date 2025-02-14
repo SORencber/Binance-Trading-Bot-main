@@ -136,7 +136,12 @@
         "best_params": {
           "fib_tolerance": 0.03,
           "patterns": [
-            "gartley","bat","crab","butterfly","shark","cipher"
+            "gartley",
+            "bat",
+            "crab",
+            "butterfly",
+            "shark",
+            "cipher"
           ],
           "check_volume": true,
           "volume_factor": 1.3,
@@ -878,7 +883,7 @@
           "min_top_pivots": 2,
           "min_bot_pivots": 2,
           "min_bars_width": 40,
-          "max_bars_width": 300,
+          "max_bars_width": 800,
           "breakout_confirm": true,
           "check_retest": true,
           "retest_tolerance": 0.01
@@ -1095,9 +1100,9 @@
       },
       "rectangle": {
         "best_params": {
-          "parallel_thresh": 0.1,
-          "min_top_pivots": 9,
-          "min_bot_pivots": 9,
+          "parallel_thresh": 0.01,
+          "min_top_pivots": 2,
+          "min_bot_pivots": 2,
           "min_bars_width": 50,
           "max_bars_width": 1000,
           "breakout_confirm": true,

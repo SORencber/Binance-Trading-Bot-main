@@ -21,6 +21,7 @@ BYBIT_API_SECRET   = os.getenv("BYBIT_API_SECRET","")
 BOT_CONFIG = {
     # Tek bir borsada çalışacaksanız:
     "active_exchange": "binance",
+    "command_source":"app",
     "mode": "trading_view", 
     "paper_trading": True,
      # OCO ile Kademeli mi ? 
@@ -100,9 +101,9 @@ BOT_CONFIG = {
     "telegram_token": os.getenv("TELEGRAM_BOT_TOKEN","7960510187:AAG2508opCLmJN0BlZAdT1FmL2Y7HxrK2i8"),  # Bot token
     "telegram_logging_chat_id": os.getenv("TELEGRAM_LOG_CHAT_ID","-1002493512673"),  
     "telegram_command_chat_id": os.getenv("TELEGRAM_COMMAND_CHAT_ID","-1002493512673"), 
-    "allowed_user_ids": [799802592,1107664588],  # Telegram user id'ler
-    "telegram_logging_chat_ids": [799802592,1107664588 ],
+    "allowed_user_ids": [1401826257,799802592,1107664588,-1002493512673],  # Telegram user id'ler
+    "telegram_logging_chat_ids": [1401826257,799802592,1107664588,-1002493512673 ],
 
-
+      #1401826257 firat
 
 }
