@@ -57,35 +57,39 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def find_coin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     shared_ctx = context.application.bot_data["shared_context"]
     user_id = update.effective_user.id
-    if user_id not in shared_ctx.config.get("allowed_user_ids",[]):
+    if user_id not in shared_ctx.config.get("allowed_user_ids", []):
         await update.message.reply_text("Yetkisiz Erisim, Lütfen yonetici ile iletisime gecin..")
         return
     tokens = update.message.text.split()
-   
-    # = tokens[1].upper()
-    #await update.message.reply_text(f"Symbol {new_sym} added.")
-    await update.message.reply_text(f"ilk 20 Koin Analiz siraya alindi , Lütfen bekleyiniz.")
-
-    # 1) (Opsiyonel) Trading'i durdur
-    #from main import stop_trading, start_trading  # Örnek, proje yapınıza göre
-    #await stop_trading(shared_ctx)
-   # await update.message.reply_text("Trading tasks paused.")
-
-    # 2) Symbol listeyi temizle => yeni sembol ekle
-    #shared_ctx.config["symbols"] = [new_sym]
-    #shared_ctx.config["command_source"] = "telegram"
-
-    # **Burada symbol_map'i sıfırlıyoruz**
-    #shared_ctx.symbol_map = {sym: SymbolState(sym) for sym in shared_ctx.config["symbols"]}
-    await analyze_coins(shared_ctx)    
     
- 
-    #print("Yeni semboller:", shared_ctx.symbol_map.keys())  # Debug için
-    #await update.message.reply_text(f"{new_sym} icin Analiz tamamlandi.")
+    #list_long = tokens[1].upper()
+    list_long = int(tokens[1]) if len(tokens) > 1 else 5  # Varsayılan olarak 5
+    best_coins = await analyze_coins(shared_ctx, list_long=list_long)    
 
-    # 3) Tekrar trading başlat
-    #await start_trading(shared_ctx)
-    #await update.message.reply_text("Trading tasks resumed.")
+    await update.message.reply_text("Varsayilan olarak ilk 20 coin ama en az  %5 islem gormus coinlerin, SHort ve Long degerlendirmesi analiz edilecek.")
+
+    # Perform analysis to get the best coins
+    best_coins = await analyze_coins(ctx=shared_ctx,list_long=list_long)    
+    # Tarih formatı
+    from datetime import datetime
+    current_time = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+
+    # Telegram'a mesaj gönderme
+    long_message = f"📈 **Top 10 Long Coins** (Analiz Tarihi: {current_time}):\n"
+    # Prepare the message to send
+    for idx, coin in enumerate(best_coins['top_long_coins']):
+        long_message += f"{idx + 1}. {coin['coin']} - Puan: {coin['score']}\n"
+
+    short_message = f"📉 **Top 10 Short Coins** (Analiz Tarihi: {current_time}):\n"
+    for idx, coin in enumerate(best_coins['top_short_coins']):
+        short_message += f"{idx + 1}. {coin['coin']} - Puan: {coin['score']}\n"
+
+    # Send the formatted results to the user
+    await update.message.reply_text(long_message)
+    await update.message.reply_text(short_message)
+
+    # Optionally, you can send an additional message to indicate the analysis is complete
+    await update.message.reply_text("Analiz tamamlandı, sonuçlar yukarıda verilmiştir.")
 
 
 async def setsymbol_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

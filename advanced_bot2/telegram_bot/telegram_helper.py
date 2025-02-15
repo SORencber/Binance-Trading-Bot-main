@@ -91,20 +91,20 @@ def calculate_timeframe_score(tf_data):
     }
 
 
-async def analyze_coins(ctx:SharedContext):
- 
-    best_coins = {'long': {'score': -100, 'coin': None}, 'short': {'score': -100, 'coin': None}}
+async def analyze_coins(ctx: SharedContext,list_long=20):
+    # Initialize the best coin dictionaries and lists to store scores
+    long_coins = []
+    short_coins = []
     exchange_client = BinanceSpotManagerAsync(BINANCE_API_KEY, BINANCE_API_SECRET)
 
-    trending_coins = await exchange_client.get_trending_coins(list=20)
+    trending_coins = await exchange_client.get_trending_coins(list=list_long)
 
     for coin in trending_coins:
         symbol = coin['symbol']
         print(symbol)
         await update_data(ctx=ctx, s=symbol)
 
-
-        #df_1m = ctx.df_map.get(symbol, {}).get("1m", None)
+        # Retrieve data for different timeframes
         df_5m = ctx.df_map.get(symbol, {}).get("5m", None)
         df_15m = ctx.df_map.get(symbol, {}).get("15m", None)
         df_30m = ctx.df_map.get(symbol, {}).get("30m", None)
@@ -113,28 +113,34 @@ async def analyze_coins(ctx:SharedContext):
         df_1d = ctx.df_map.get(symbol, {}).get("1d", None)
         df_1w = ctx.df_map.get(symbol, {}).get("1w", None)
 
-        get_regime_info = get_all_regimes(symbol,df_5m=df_5m,df_15m=df_15m,df_30m=df_30m,df_1h=df_1h,df_4h=df_4h,df_1d=df_1d,df_1w=df_1w)
-        #find_best_opportunities(get_regime_info)
+        get_regime_info = get_all_regimes(symbol, df_5m=df_5m, df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d, df_1w=df_1w)
+        
         total_long = 0
         total_short = 0
+
         for timeframe, data in get_regime_info.items():
             try:
-                
                 result = calculate_timeframe_score(data)
                 print(f"Timeframe: {timeframe} - Long: {result['long']}, Short: {result['short']}")
+                total_long += result['long']
+                total_short += result['short']
             except ValueError as e:
                 print(f"Error for {timeframe}: {e}")
-                #scores = calculate_timeframe_score(get_regime_info)
-        total_long += result['long']
-        total_short += result['short']
-            
-        if total_long > best_coins['long']['score']:
-            best_coins['long'] = {'score': total_long, 'coin': symbol}
-            
-        if total_short > best_coins['short']['score']:
-            best_coins['short'] = {'score': total_short, 'coin': symbol}
-            
-    return best_coins
+                continue  # Skip any errors and continue processing
+
+        # Add the coin and its scores to the respective lists
+        long_coins.append({'coin': symbol, 'score': total_long})
+        short_coins.append({'coin': symbol, 'score': total_short})
+
+    # Sort coins by their scores in descending order
+    top_long_coins = sorted(long_coins, key=lambda x: x['score'], reverse=True)[:10]
+    top_short_coins = sorted(short_coins, key=lambda x: x['score'], reverse=True)[:10]
+
+    # Return the top 10 coins for long and short positions
+    return {
+        'top_long_coins': top_long_coins,
+        'top_short_coins': top_short_coins
+    }
 
 
 async def analyze_data(ctx:SharedContext, symbol: str):
