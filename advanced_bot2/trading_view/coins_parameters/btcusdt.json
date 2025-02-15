@@ -650,6 +650,19 @@
           "retest_tolerance": 0.001
         },
         "best_score": 1.0
+      },
+      "rectangle": {
+        "best_params": {
+          "parallel_thresh": 0.01,
+          "min_top_pivots": 2,
+          "min_bot_pivots": 2,
+          "min_bars_width": 30,
+          "max_bars_width": 600,
+          "breakout_confirm": true,
+          "check_retest": true,
+          "retest_tolerance": 0.01
+        },
+        "best_score": 0.0
       }
     },
     "1h": {
@@ -858,6 +871,19 @@
           "retest_tolerance": 0.001
         },
         "best_score": 0.0
+      },
+      "rectangle": {
+        "best_params": {
+          "parallel_thresh": 0.01,
+          "min_top_pivots": 2,
+          "min_bot_pivots": 2,
+          "min_bars_width": 40,
+          "max_bars_width": 800,
+          "breakout_confirm": true,
+          "check_retest": true,
+          "retest_tolerance": 0.01
+        },
+        "best_score": 0.0
       }
     },
     "4h": {
@@ -1064,6 +1090,19 @@
           "max_iter": 10,
           "check_retest": true,
           "retest_tolerance": 0.001
+        },
+        "best_score": 0.0
+      },
+      "rectangle": {
+        "best_params": {
+          "parallel_thresh": 0.01,
+          "min_top_pivots": 2,
+          "min_bot_pivots": 2,
+          "min_bars_width": 50,
+          "max_bars_width": 1000,
+          "breakout_confirm": true,
+          "check_retest": true,
+          "retest_tolerance": 0.01
         },
         "best_score": 0.0
       }
@@ -1276,6 +1315,19 @@
           "max_iter": 10,
           "check_retest": true,
           "retest_tolerance": 0.001
+        },
+        "best_score": 0.0
+      },
+      "rectangle": {
+        "best_params": {
+          "parallel_thresh": 0.005,
+          "min_top_pivots": 2,
+          "min_bot_pivots": 2,
+          "min_bars_width": 60,
+          "max_bars_width": 2000,
+          "breakout_confirm": true,
+          "check_retest": true,
+          "retest_tolerance": 0.01
         },
         "best_score": 0.0
       }

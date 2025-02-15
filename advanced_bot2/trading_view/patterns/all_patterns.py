@@ -2584,17 +2584,21 @@ def save_best_params_to_json(symbol: str,
     Tek bir JSON dosyasında parametreleri saklar.
     pattern_name=None => "pivot_strategy"
     """
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
     if filename is None:
-        base_path = os.path.dirname(os.path.abspath(__file__))
         filename = os.path.join(base_path, '..', 'coins_parameters', f'{symbol.lower()}.json')
         filename = os.path.abspath(filename)
-    if not os.path.exists(filename):
+    
+    filenameX = os.path.join(base_path, '..', 'coins_parameters', filename)
+
+    if not os.path.exists(filenameX):
         data = {
             "symbol": symbol,
             "time_frames": {}
         }
     else:
-        with open(filename, "r", encoding="utf-8") as f:
+        with open(filenameX, "r", encoding="utf-8") as f:
             data = json.load(f)
     if "time_frames" not in data:
         data["time_frames"] = {}
@@ -2607,9 +2611,9 @@ def save_best_params_to_json(symbol: str,
         "best_score": best_score
     }
 
-    with open(filename, "w", encoding="utf-8") as f:
+    with open(filenameX, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-    print(f"[save_best_params_to_json] => {filename} updated => time_frame={timeframe}, pattern={store_key}")
+    print(f"[save_best_params_to_json] => {filenameX} updated => time_frame={timeframe}, pattern={store_key}")
 
 
 def load_best_params_from_json(symbol: str,

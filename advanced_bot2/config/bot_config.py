@@ -8,7 +8,6 @@ load_dotenv()
 # Artık .env içindeki değişkenleri os.getenv ile okuyabilirsiniz
 BINANCE_API_KEY    = os.getenv("BINANCE_API_KEY","")
 BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET","")
-#print("DEBUG KEY:", os.getenv("BINANCE_API_KEY"))
 
 OKX_API_KEY        = os.getenv("OKX_API_KEY","")
 OKX_API_SECRET     = os.getenv("OKX_API_SECRET","")
@@ -16,6 +15,8 @@ OKX_PASSPHRASE     = os.getenv("OKX_PASSPHRASE","")
 
 BYBIT_API_KEY      = os.getenv("BYBIT_API_KEY","")
 BYBIT_API_SECRET   = os.getenv("BYBIT_API_SECRET","")
+OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY","")
+
 
 
 BOT_CONFIG = {
@@ -26,7 +27,7 @@ BOT_CONFIG = {
     "paper_trading": True,
      # OCO ile Kademeli mi ? 
     "use_oco_kademeli" :False,
-    "symbols": ["BTCUSDT"], # "" => advanced_strategy, "ml", "rl", ...
+    "symbols": ["BURGERUSDT"], 
     # Birden fazla borsa için veriler
     "exchanges": {
         "binance": {
@@ -101,9 +102,13 @@ BOT_CONFIG = {
     "telegram_token": os.getenv("TELEGRAM_BOT_TOKEN","7960510187:AAG2508opCLmJN0BlZAdT1FmL2Y7HxrK2i8"),  # Bot token
     "telegram_logging_chat_id": os.getenv("TELEGRAM_LOG_CHAT_ID","-1002493512673"),  
     "telegram_command_chat_id": os.getenv("TELEGRAM_COMMAND_CHAT_ID","-1002493512673"), 
-    "allowed_user_ids": [1401826257,799802592,1107664588,-1002493512673],  # Telegram user id'ler
-    "telegram_logging_chat_ids": [1401826257,799802592,1107664588,-1002493512673 ],
+    "allowed_user_ids": [ 8061168316,1401826257,799802592,1107664588,-1002493512673],  # Telegram user id'ler
+    "telegram_logging_chat_ids": [ 8061168316,1401826257,799802592,1107664588,-1002493512673],
 
       #1401826257 firat
+      # 8061168316 murat
 
+    #Open AI settings  
+    "open_ai":True,
+    "openai_model" :"gpt-4o-mini"
 }

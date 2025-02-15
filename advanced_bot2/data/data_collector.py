@@ -6,8 +6,7 @@ from core.context import SharedContext
 import asyncio,os,aiohttp
 from dotenv import load_dotenv
 import traceback
-import datetime
-from datetime import timedelta 
+from binance.exceptions import BinanceAPIException
 from .sentiment_data  import( fetch_news_headlines_cached)
 from .onchain_data import (fetch_fgi_and_onchain_15min)
 from .sp import (fetch_sp500_dxy_vix_15min)
@@ -32,119 +31,85 @@ NEW_API_KEY    = os.getenv("NEW_API_KEY","")
 
 async def fetch_klines(client_async: AsyncClient, symbol: str, timeframe, candle_count,    csv_path: str):
 
-    print(f"[DEBUG] fetch_klines => symbol={symbol}, interval={timeframe}, limit={candle_count}")
-   
-            # Veri süresi hesaplama
-    data_duration = (
-        f"{candle_count} minutes ago UTC" if timeframe == "1m" else
-        f"{candle_count * 5} minutes ago UTC" if timeframe == "5m" else
-        f"{candle_count * 15} minutes ago UTC" if timeframe == "15m" else
-        f"{candle_count * 30} minutes ago UTC" if timeframe == "30m" else
-        f"{candle_count} hours ago UTC"        if timeframe == "1h" else
-        f"{candle_count * 4} hours ago UTC"    if timeframe == "4h" else
-        f"{candle_count} days ago UTC"         if timeframe == "1d" else
-        f"{candle_count * 7} days ago UTC"     if timeframe == "1w" else
-        ...
-    )
-
-    klines =await  client_async.get_historical_klines(symbol, timeframe, data_duration)  
-    print(f"[DEBUG] fetch_klines => raw klines len={len(klines)}")
-
-    df = pd.DataFrame(klines, columns=[
-        "Open Time", "Open", "High", "Low", "Close", "Volume",
-        "Close Time", "Quote Asset Volume", "Number of Trades",
-        "Taker Buy Base Volume", "Taker Buy Quote Volume", "Ignore"
-    ])
-
-    df["Open Time"] = pd.to_datetime(df["Open Time"], unit='ms')
-    df["Close Time"] = pd.to_datetime(df["Close Time"], unit='ms')
-    numeric_cols = ["Open","High","Low","Close","Volume",
-                    "Quote Asset Volume","Taker Buy Base Volume","Taker Buy Quote Volume"]
-    for c in numeric_cols:
-        df[c] = df[c].astype(float)
-   
-        df.rename(columns={"Open Time": "timestamp"}, inplace=True)
-        df.sort_values("timestamp", inplace=True)
-        df.reset_index(drop=True, inplace=True)
-
-        start_ts = df["timestamp"].iloc[0]
-        end_ts   = df["timestamp"].iloc[-1]
-        print(f"[DEBUG] Klines => start={start_ts}, end={end_ts}")
-
-        # 2) OI => parça parça
-        async with aiohttp.ClientSession() as session:
-            df_oi = await fetch_oi_in_chunks(
-                session=session,
-                symbol=symbol,
-                period=timeframe,
-                start_ts=start_ts,
-                end_ts=end_ts,
-                max_bars=50000  # 50k bar
-            )
-        print(f"[DEBUG] OI => shape={df_oi.shape}")
-        
-        # 3) asof merge (direction="backward"), 
-        #    kline timestamp'ına en yakın OI timestamp satırını eşleştir
-        if not df_oi.empty:
-           
-            # milis => datetime
-            df_oi["timestamp"] = pd.to_datetime(df_oi["timestamp"], unit="ms")  
-            df_oi.sort_values("timestamp", inplace=True)
-            df_oi.reset_index(drop=True, inplace=True)
-
-            df_final = pd.merge_asof(
-                df,
-                df_oi[["timestamp","sumOpenInterest","sumOpenInterestValue"]],
-                on="timestamp",
-                direction="backward"
-            )
-        else:
-            df_final = df.copy()
-            df_final["sumOpenInterest"] = None
-            df_final["sumOpenInterestValue"] = None
-
-        # 4) CSV'yi güncelle (tek dosya)
-        df_final.to_csv(csv_path, index=False)
-        print(f"[DONE] => Klines+OI => shape={df_final.shape}, saved to {csv_path}")
-        return df_final
-
-async def fetch_initial_klines_to_csv(
-    client: AsyncClient,
-    symbol: str,
-    timeframe: str,
-    limit: int,
-    csv_path: str
-):
-    """
-    Tek seferde 'limit' kadar bar çekip csv_path'e kaydeder.
-    """
-    print(f"[INIT] => Fetching {limit} bars for {symbol} ({timeframe})...")
-    klines = await client.get_historical_klines(
-        symbol, 
-        timeframe, 
-        f"{limit} {timeframe} ago UTC"
-    )
-    df = pd.DataFrame(klines, columns=[
-        "Open Time", "Open", "High", "Low", "Close", "Volume",
-        "Close Time", "Quote Asset Volume", "Number of Trades",
-        "Taker Buy Base Volume", "Taker Buy Quote Volume", "Ignore"
-    ])
-    df["Open Time"] = pd.to_datetime(df["Open Time"], unit='ms')
-    df["Close Time"] = pd.to_datetime(df["Close Time"], unit='ms')
-
-    numeric_cols = ["Open","High","Low","Close","Volume",
-                    "Quote Asset Volume","Taker Buy Base Volume","Taker Buy Quote Volume"]
-    for c in numeric_cols:
-        df[c] = df[c].astype(float)
+    try:
+        print(f"[DEBUG] fetch_klines => symbol={symbol}, interval={timeframe}, limit={candle_count}")
     
-    df.rename(columns={"Open Time": "timestamp"}, inplace=True)
-    df.sort_values("timestamp", inplace=True)
-    df.reset_index(drop=True, inplace=True)
+                # Veri süresi hesaplama
+        data_duration = (
+            f"{candle_count} minutes ago UTC" if timeframe == "1m" else
+            f"{candle_count * 5} minutes ago UTC" if timeframe == "5m" else
+            f"{candle_count * 15} minutes ago UTC" if timeframe == "15m" else
+            f"{candle_count * 30} minutes ago UTC" if timeframe == "30m" else
+            f"{candle_count} hours ago UTC"        if timeframe == "1h" else
+            f"{candle_count * 4} hours ago UTC"    if timeframe == "4h" else
+            f"{candle_count} days ago UTC"         if timeframe == "1d" else
+            f"{candle_count * 7} days ago UTC"     if timeframe == "1w" else
+            ...
+        )
 
-    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-    df.to_csv(csv_path, index=False)
-    print(f"[INIT] => {symbol}({timeframe}) initial fetch done, shape={df.shape}, saved to {csv_path}")
+        klines =await  client_async.get_historical_klines(symbol, timeframe, data_duration)  
+        print(f"[DEBUG] fetch_klines => raw klines len={len(klines)}")
 
+        df = pd.DataFrame(klines, columns=[
+            "Open Time", "Open", "High", "Low", "Close", "Volume",
+            "Close Time", "Quote Asset Volume", "Number of Trades",
+            "Taker Buy Base Volume", "Taker Buy Quote Volume", "Ignore"
+        ])
+
+        df["Open Time"] = pd.to_datetime(df["Open Time"], unit='ms')
+        df["Close Time"] = pd.to_datetime(df["Close Time"], unit='ms')
+        numeric_cols = ["Open","High","Low","Close","Volume",
+                        "Quote Asset Volume","Taker Buy Base Volume","Taker Buy Quote Volume"]
+        for c in numeric_cols:
+            df[c] = df[c].astype(float)
+    
+            df.rename(columns={"Open Time": "timestamp"}, inplace=True)
+            df.sort_values("timestamp", inplace=True)
+            df.reset_index(drop=True, inplace=True)
+
+            start_ts = df["timestamp"].iloc[0]
+            end_ts   = df["timestamp"].iloc[-1]
+            print(f"[DEBUG] Klines => start={start_ts}, end={end_ts}")
+
+            # 2) OI => parça parça
+            async with aiohttp.ClientSession() as session:
+                df_oi = await fetch_oi_in_chunks(
+                    session=session,
+                    symbol=symbol,
+                    period=timeframe,
+                    start_ts=start_ts,
+                    end_ts=end_ts,
+                    max_bars=50000  # 50k bar
+                )
+            print(f"[DEBUG] OI => shape={df_oi.shape}")
+            
+            # 3) asof merge (direction="backward"), 
+            #    kline timestamp'ına en yakın OI timestamp satırını eşleştir
+            if not df_oi.empty:
+            
+                # milis => datetime
+                df_oi["timestamp"] = pd.to_datetime(df_oi["timestamp"], unit="ms")  
+                df_oi.sort_values("timestamp", inplace=True)
+                df_oi.reset_index(drop=True, inplace=True)
+
+                df_final = pd.merge_asof(
+                    df,
+                    df_oi[["timestamp","sumOpenInterest","sumOpenInterestValue"]],
+                    on="timestamp",
+                    direction="backward"
+                )
+            else:
+                df_final = df.copy()
+                df_final["sumOpenInterest"] = None
+                df_final["sumOpenInterestValue"] = None
+
+            # 4) CSV'yi güncelle (tek dosya)
+            df_final.to_csv(csv_path, index=False)
+            print(f"[DONE] => Klines+OI => shape={df_final.shape}, saved to {csv_path}")
+            return df_final
+    except BinanceAPIException as e:
+                log(f"[RealOrder] OCO SELL => {e}", "error")
+                raise e
 
 
 async def update_klines_csv(
@@ -753,6 +718,134 @@ async def loop_data_collector(ctx: SharedContext, strategy):
             # 12) strategy analyze
             await strategy.analyze_data()
             await asyncio.sleep(300)
+
+        except Exception as e:
+            log(f"[loop_data_collector] => {e}\n{traceback.format_exc()}", "error")
+            print(f"[DEBUG] Exception in loop_data_collector => {e}\n{traceback.format_exc()}")
+            await asyncio.sleep(30)
+
+async def update_data(ctx: SharedContext,s:str="BTCUSDT"):
+   
+        try:
+            # now_utc = datetime.utcnow()
+            # # Bir sonraki tam dakika (1m bar) kapanışının utc zamanı
+            # next_minute = now_utc.replace(second=0, microsecond=0) + timedelta(minutes=1)
+            
+            # # Kaç saniye kaldı?
+            # wait_sec = (next_minute - datetime.utcnow()).total_seconds()
+            
+            # # Geri sayım: her 1 saniyede bir ekrana yazalım
+            # # int() alarak virgülleri yok ediyoruz.
+            # for sec in range(int(wait_sec), 0, -1):
+            #     print(f"Bar'ın kapanmasına {sec} saniye kaldı...")
+            #     await asyncio.sleep(1)
+
+            # Burada tam bar kapanış anına geldik
+            print("Bar kapandı! (veya yeni bar açıldı). Şimdi veri toplanabilir/işlenebilir...\n")
+
+           
+            # 1) CSV update => 1m
+            csv_1m_path = f"data_storage/{s}_1m.csv"
+            df_1m = await update_klines_csv(ctx.client_async, s, "1m", csv_1m_path, max_rows=50000)
+
+            # 2) CSV update => 5m
+            csv_5m_path = f"data_storage/{s}_5m.csv"
+            df_5m = await update_klines_csv(ctx.client_async, s, "5m", csv_5m_path, max_rows=10000)
+
+            # 3) CSV update => 15m
+            csv_15m_path = f"data_storage/{s}_15m.csv"
+            df_15m = await update_klines_csv(ctx.client_async, s, "15m", csv_15m_path, max_rows=6000)
+
+            # 4) CSV update => 30m
+            csv_30m_path = f"data_storage/{s}_30m.csv"
+            df_30m = await update_klines_csv(ctx.client_async, s, "30m", csv_30m_path, max_rows=6000)
+
+            # 5) CSV update => 1h
+            csv_1h_path = f"data_storage/{s}_1h.csv"
+            df_1h = await update_klines_csv(ctx.client_async, s, "1h", csv_1h_path, max_rows=6000)
+
+            # 6) CSV update => 4h
+            csv_4h_path = f"data_storage/{s}_4h.csv"
+            df_4h = await update_klines_csv(ctx.client_async, s, "4h", csv_4h_path, max_rows=6000)
+
+            # 7) CSV update => 1d
+            csv_1d_path = f"data_storage/{s}_1d.csv"
+            df_1d = await update_klines_csv(ctx.client_async, s, "1d", csv_1d_path, max_rows=1000)
+            
+            csv_1w_path = f"data_storage/{s}_1w.csv"
+            await update_klines_csv(ctx.client_async, s, "1w", csv_1w_path, max_rows=1000)
+            
+            # 8) Şimdi CSV'lerden oku + indikatör hesapla + rename
+            df_1m_ind  = load_and_calc_1m(csv_1m_path)
+            df_5m_ind  = load_and_calc_5m(csv_5m_path)
+            df_15m_ind = load_and_calc_15m(csv_15m_path)
+            df_30m_ind = load_and_calc_30m(csv_30m_path)
+            df_1h_ind  = load_and_calc_1h(csv_1h_path)
+            df_4h_ind  = load_and_calc_4h(csv_4h_path)
+            df_1d_ind  = load_and_calc_1d(csv_1d_path)
+            df_1w_ind  = load_and_calc_1w(csv_1w_path)
+
+            # 9) MTF merge => 1m bazlı final
+            df_final = merge_all_tfs(
+                df_1m_ind,
+                df_5m_ind,
+                df_15m_ind,
+                df_30m_ind,
+                df_1h_ind,
+                df_4h_ind,
+                df_1d_ind,df_1w_ind
+            )
+            #print("df_final---->",df_final.shape)
+            #print(df_final[['timestamp', 'Close_1m','Close_5m','Close_15m','Close_30m','Close_1h', 'Close_4h','Close_1d']].tail(240))
+            #print(df_1h_ind[['timestamp', 'Close_1h']].tail(6))
+            #print(df_1h[['timestamp', 'Close']].tail(10))
+
+            # 10) Onchain, macro, sentiment
+            fgi_val, onchain_val = await fetch_fgi_and_onchain_15min(s)
+            sp500_val, sp500_chg, dxy_val, dxy_chg, vix_val, vix_chg = await fetch_sp500_dxy_vix_15min()
+    
+            last_idx = df_final.index[-1]
+            
+            df_final.loc[last_idx, "SP500"] = sp500_val
+            df_final.loc[last_idx, "DXY"]   = dxy_val
+            df_final.loc[last_idx, "VIX"]   = vix_val
+            df_final.loc[last_idx, "SPX_Change"] = sp500_chg
+            df_final.loc[last_idx, "DXY_Change"]   = dxy_chg
+            df_final.loc[last_idx, "VIX_Change"]   = vix_chg
+
+            df_final.loc[last_idx, "Fear_Greed_Index"] = fgi_val
+            df_final.loc[last_idx, "Onchain_Score"]    = onchain_val
+
+            df_final.loc[last_idx, "News_Headlines"]   = fetch_news_headlines_cached("BTCUSDT", NEW_API_KEY, interval_minutes=30)
+
+            
+            funding_rate,open_interest,order_book_num,total_asks,total_bids= await get_fetch_data(s)
+            #print(funding_rate,open_interest,order_book_num,total_asks,total_bids)
+            df_final.loc[last_idx,'Order_Book_Num'] = order_book_num
+            df_final.loc[last_idx,'OrderBook_BidVol'] = total_bids
+            df_final.loc[last_idx,'OrderBook_AskVol'] = total_asks
+            df_final.loc[last_idx,'Funding_Rate'] = funding_rate
+            df_final.loc[last_idx,'Open_Interest'] = open_interest
+            # 11) synergy / analyze
+            print("analiz basladi")
+            #holy_grail_all_timeframes(df_final)
+            #result = analyze_trends_and_signals_v6(df_final)
+            #df_final.to_csv("data/price_data.csv", index=False)
+            
+            # print("RESULT =>", result)
+            # print("Detail Scores =>", result["detail_scores"])
+            # print("Delayed Signals =>", result["delayed_signals"])
+            # if s not in ctx.df_map:
+            ctx.df_map[s] = {}
+            ctx.df_map[s]["merged"] = df_final
+            ctx.df_map[s]["1m"] = df_1m_ind
+            ctx.df_map[s]["5m"] = df_5m_ind
+            ctx.df_map[s]["15m"] = df_15m_ind
+            ctx.df_map[s]["30m"] = df_30m_ind
+            ctx.df_map[s]["1h"] = df_1h_ind
+            ctx.df_map[s]["4h"] = df_4h_ind
+            ctx.df_map[s]["1d"] = df_1d_ind
+            ctx.df_map[s]["1w"] = df_1w_ind
 
         except Exception as e:
             log(f"[loop_data_collector] => {e}\n{traceback.format_exc()}", "error")

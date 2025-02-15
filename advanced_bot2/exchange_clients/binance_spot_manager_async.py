@@ -1,8 +1,6 @@
 import logging
-import time
-import math
+
 import traceback
-from decimal import Decimal
 
 import asyncio
 import concurrent.futures
@@ -12,7 +10,7 @@ from binance.enums import *
 from binance.exceptions import BinanceAPIException, BinanceOrderException
 
 from exchange_clients.base_exchange import BaseExchangeClient
-from core.logging_setup import log  # <-- Sizin log fonksiyonunuz
+from core.logging_setup import log 
 
 
 class BinanceSpotManagerAsync(BaseExchangeClient):
@@ -443,3 +441,27 @@ class BinanceSpotManagerAsync(BaseExchangeClient):
         except Exception as ex:
             log(f"[get_open_oco_orders] => unknown => {ex}\n{traceback.format_exc()}", "error")
             return []
+    
+    async def place_oco_sell(self, quantity: float, tp_price: float, sl_price: float):
+            try:
+                oco= await self.client.create_oco_order(
+                    symbol=self.symbol,
+                    side= SIDE_SELL,
+                    quantity= float(quantity),
+                    price= str(tp_price),
+                    stopPrice= str(sl_price),
+                    stopLimitPrice= str(sl_price),
+                    stopLimitTimeInForce="GTC"
+                )
+                log(f"[RealOrder] OCO SELL => {self.symbol}, qty={quantity}, TP={tp_price}, SL={sl_price}", "info")
+                return oco
+            except BinanceAPIException as e:
+                log(f"[RealOrder] OCO SELL => {e}", "error")
+                raise e
+
+    
+    async def  get_trending_coins(self,list=20):
+        X = 0.01
+        tickers =  self.client.get_ticker()
+        trending =  [ticker for ticker in tickers if ticker['symbol'].endswith('USDT') and float(ticker['priceChangePercent']) > X]
+        return trending[:list]

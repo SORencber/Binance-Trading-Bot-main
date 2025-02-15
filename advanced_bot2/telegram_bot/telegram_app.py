@@ -4,7 +4,7 @@ import asyncio
 from telegram.ext import ApplicationBuilder, CommandHandler
 from .handlers import (
     start_command, status_command, stop_command,
-    addsymbol_command, positions_command, pnl_command,
+    find_coin_command, positions_command, pnl_command,
     pause_command, resume_command,setsymbol_command
 )
 
@@ -20,15 +20,15 @@ class TelegramBotApp:
         self.app.bot_data["shared_context"] = self.shared_ctx
 
         # Komutlar
-        self.app.add_handler(CommandHandler("start", start_command))
-        self.app.add_handler(CommandHandler("status", status_command))
-        self.app.add_handler(CommandHandler("stop", stop_command))
-        self.app.add_handler(CommandHandler("addsymbol", addsymbol_command))
-        self.app.add_handler(CommandHandler("positions", positions_command))
+        self.app.add_handler(CommandHandler("basla", start_command))
+        self.app.add_handler(CommandHandler("durum", status_command))
+        self.app.add_handler(CommandHandler("dur", stop_command))
+        self.app.add_handler(CommandHandler("bul", find_coin_command))
+        self.app.add_handler(CommandHandler("pozisyonlar", positions_command))
         self.app.add_handler(CommandHandler("pnl", pnl_command))
-        self.app.add_handler(CommandHandler("pause", pause_command))
-        self.app.add_handler(CommandHandler("resume", resume_command))
-        self.app.add_handler(CommandHandler("setsymbol", setsymbol_command))
+        self.app.add_handler(CommandHandler("dur", pause_command))
+        self.app.add_handler(CommandHandler("devam", resume_command))
+        self.app.add_handler(CommandHandler("goster", setsymbol_command))
 
         # --- BURAYA YENİ KOMUT EKLEYECEĞİZ ---
         # (Aşağıda gösteriliyor)
@@ -39,7 +39,7 @@ class TelegramBotApp:
         
         
         # ÖNEMLİ EKLEME:
-        self.shared_ctx.telegram_app = self.app  # <--- BU SATIR
+        self.shared_ctx.telegram_app = self.app  
        
        
         # Manuel while => eğer wait_for_stop yoksa

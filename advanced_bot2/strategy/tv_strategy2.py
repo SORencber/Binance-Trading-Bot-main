@@ -204,43 +204,43 @@ class TradingViewStrategy(IStrategy):
                     f"panic={st.panic_mode}, reentry={reentry_allow}, netPnL={st.net_pnl:.2f}, RL={action}")
         log(log_msg, "info")      
         #df_1m = ctx.df_map.get(symbol, {}).get("1m", None)
-        # df_5m = ctx.df_map.get(symbol, {}).get("5m", None)
-        # df_15m = ctx.df_map.get(symbol, {}).get("15m", None)
-        # df_30m = ctx.df_map.get(symbol, {}).get("30m", None)
-        # df_1h = ctx.df_map.get(symbol, {}).get("1h", None)
-        # df_4h = ctx.df_map.get(symbol, {}).get("4h", None)
-        # df_1d = ctx.df_map.get(symbol, {}).get("1d", None)
-        # df_1w = ctx.df_map.get(symbol, {}).get("1w", None)
+        df_5m = ctx.df_map.get(symbol, {}).get("5m", None)
+        df_15m = ctx.df_map.get(symbol, {}).get("15m", None)
+        df_30m = ctx.df_map.get(symbol, {}).get("30m", None)
+        df_1h = ctx.df_map.get(symbol, {}).get("1h", None)
+        df_4h = ctx.df_map.get(symbol, {}).get("4h", None)
+        df_1d = ctx.df_map.get(symbol, {}).get("1d", None)
+        df_1w = ctx.df_map.get(symbol, {}).get("1w", None)
 
-        # force_summary=False
-        # command_source=ctx.config["command_source"]
-        # if command_source=="telegram": 
-        #     force_summary=True
-        #     ctx.config["command_source"]="app"
+        force_summary=False
+        command_source=ctx.config["command_source"]
+        if command_source=="telegram": 
+            force_summary=True
+            ctx.config["command_source"]="app"
 
 
-        # result = await self.send_telegram_messages(price=price,df_5m=df_5m,df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d,df_1w=df_1w, ctx=ctx, row_main=row_main, symbol=symbol, regime=regime, force_summary=force_summary)
+        result = await self.send_telegram_messages(price=price,df_5m=df_5m,df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d,df_1w=df_1w, ctx=ctx, row_main=row_main, symbol=symbol, regime=regime, force_summary=force_summary)
         
-        # if result:
-        #     mtf_decision, summ_patterns = result
-        #     #(".....",summ_patterns)
+        if result:
+            mtf_decision, summ_patterns = result
+            #(".....",summ_patterns)
         
-        #     short_closest_entry=summ_patterns["short_closest_entry"]
-        #     short_min_tp=summ_patterns["short_min_tp"]
-        #     short_max_sl=summ_patterns["short_max_sl"]
-        #     long_closest_entry=summ_patterns["long_closest_entry"]
-        #     long_min_tp=summ_patterns["long_min_tp"]
-        #     long_max_sl=summ_patterns["long_max_sl"]      
+            short_closest_entry=summ_patterns["short_closest_entry"]
+            short_min_tp=summ_patterns["short_min_tp"]
+            short_max_sl=summ_patterns["short_max_sl"]
+            long_closest_entry=summ_patterns["long_closest_entry"]
+            long_min_tp=summ_patterns["long_min_tp"]
+            long_max_sl=summ_patterns["long_max_sl"]      
         
-        #     final_act = mtf_decision["final_decision"]
+            final_act = mtf_decision["final_decision"]
                 
-        #     log_msg = (f"[{symbol}] => final={final_act}, "
-        #                     f"30m={mtf_decision['score_30m']},1h={mtf_decision['score_1h']},4h={mtf_decision['score_4h']},1d={mtf_decision['score_1d']}, "
-        #                     f"combined={mtf_decision['combined_score']}")
-        #     log(log_msg, "info")    
-        # # log(f"[TVStrategy {symbol}] => pattern_score_30m={pattern_score_30m}, reason={reason_30m},detail_for_1h: {pattern_details_30m}", "info")
-        # else:
-        #     log("Info: Beklem süresi basladi", "info")
+            log_msg = (f"[{symbol}] => final={final_act}, "
+                            f"30m={mtf_decision['score_30m']},1h={mtf_decision['score_1h']},4h={mtf_decision['score_4h']},1d={mtf_decision['score_1d']}, "
+                            f"combined={mtf_decision['combined_score']}")
+            log(log_msg, "info")    
+        # log(f"[TVStrategy {symbol}] => pattern_score_30m={pattern_score_30m}, reason={reason_30m},detail_for_1h: {pattern_details_30m}", "info")
+        else:
+            log("Info: Beklem süresi basladi", "info")
            
 
         #DEĞİŞİKLİK YAPILAN KISIMLAR (2): Eşikleri arttırarak sinyalleri güçlendir ---
@@ -1320,9 +1320,9 @@ class TradingViewStrategy(IStrategy):
                 
                 
                 txt_report = await self.format_pattern_results(results_dict,price)
-                time_frame_infos=mtf_decision["get_regime_info"]
                 await telegram_app.bot.send_message(chat_id=chat_id, text=txt_report, parse_mode="HTML")
-
+                await asyncio.sleep(5)
+                time_frame_infos=mtf_decision["get_regime_info"]
                 # Open AI baglantisi ve yorumlari alinir.
                 time_frame_infos_str = json.dumps(time_frame_infos, ensure_ascii=False)  # JSON string formatına çevir  
                 prompt = f"Verilen tüm analiz ve pattern sonuclarini birlikte degerlendir ve gercekci bir Short ve Long onerisi yap. {time_frame_infos_str} {txt_report}{txt_summary}"              
@@ -1339,7 +1339,7 @@ class TradingViewStrategy(IStrategy):
                     log(f"OPenAI Message sent to Telegram:", "info")
                     await asyncio.sleep(5)
                 else :
-                    await telegram_app.bot.send_message(chat_id=chat_id, text=txt_report, parse_mode="HTML")
+                #     await telegram_app.bot.send_message(chat_id=chat_id, text=txt_report, parse_mode="HTML")
                     LAST_SUMMARY_TIME = now 
                     log(f"Pattern Message sent to Telegram:", "info")
                     await asyncio.sleep(5)
