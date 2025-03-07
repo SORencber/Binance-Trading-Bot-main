@@ -1345,7 +1345,7 @@ def short_signal_rsi_macd_adx_bollinger_volume(df: pd.DataFrame,
                 reasons.append("High_Volume")
                 df.at[i, "SignalReason"] = "|".join(reasons)
                 print(reasons)
-        #print(rsi_condition,volume_condition,boll_condition)
+        print(rsi_condition,volume_condition,boll_condition)
 
     current_signal = df["ShortSignal"].iloc[-1]
 

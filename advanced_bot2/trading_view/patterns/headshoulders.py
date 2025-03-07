@@ -56,7 +56,7 @@ def detect_head_and_shoulders_advanced(
             continue
         if bars_LH> max_shoulder_width_bars or bars_HR> max_shoulder_width_bars:
             continue
-
+#
         # Omuz yükseklik farkı
         diffShoulder = abs(priceL - priceR)/(priceH+ 1e-9)
         if diffShoulder> shoulder_tolerance:
@@ -111,7 +111,24 @@ def detect_head_and_shoulders_advanced(
                 break_bar=confirmed_bar,
                 tolerance=retest_tolerance
             )
+###########################
+        # GELİŞTİRİLMİŞ FİLTRELER
+        ############################
+        # Omuzların zaman asimetrisi kontrolü (sol/sağ oranı)
+        time_asymmetry = abs(bars_LH - bars_HR)/max(bars_LH, bars_HR)
+        if time_asymmetry > 0.6:  # 60%'dan fazla asimetri reddet
+            continue
 
+        # Hacim trendi: Head'de zirve hacim, omuzlarda düşüş
+        if volume_decline and volume_col in df.columns:
+            vol_ratio = (volH / ((volL + volR)/2 + 1e-9))
+            if vol_ratio < 1.2:  # Head hacmi omuzlardan en az %20 yüksek olmalı
+                continue
+
+        # Boyun çizgisi dinamik eğim kontrolü
+        neckline_slope = (dip2_val - dip1_val)/(dip2_idx - dip1_idx + 1e-9)
+        if abs(neckline_slope) > 0.002:  # Çok dik boyun çizgisi reddet
+            continue
         results.append({
             "pattern": "head_and_shoulders",
             "L": (idxL, priceL),

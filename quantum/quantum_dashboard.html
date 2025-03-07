@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quantum BTC Predictor</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        :root { --primary: #00ff88; --background: #0a192f; }
+        body { background: var(--background); color: #fff; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #172a45; padding: 20px; border-radius: 15px; }
+    </style>
+</head>
+<body>
+    <div class="grid">
+        <div class="card">
+            <div id="priceChart"></div>
+        </div>
+        <div class="card">
+            <h3>Risk Analysis</h3>
+            <div id="riskGauge"></div>
+        </div>
+    </div>
+
+    <script>
+        function updateDashboard() {
+            fetch('/quantum/api/v1/forecast')
+                .then(r => r.json())
+                .then(data => {
+                    // Price Chart
+                    Plotly.newPlot('priceChart', {
+                        x: data.timestamps,
+                        y: data.prediction,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        line: {color: 'var(--primary)'}
+                    });
+                    
+                    // Risk Gauge
+                    new ApexCharts(document.querySelector("#riskGauge"), {
+                        series: [data.risk_analysis.confidence],
+                        chart: {type: 'radialBar'},
+                        plotOptions: {radialBar: {startAngle: -135, endAngle: 135}}
+                    }).render();
+                });
+        }
+        setInterval(updateDashboard, 30000);
+        updateDashboard();
+    </script>
+</body>
+</html>

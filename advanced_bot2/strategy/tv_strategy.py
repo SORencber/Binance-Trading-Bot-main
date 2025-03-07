@@ -25,6 +25,7 @@ from trading_view.main_tv import generate_signals # <-- Pattern tespiti fonksiyo
 from datetime import datetime
 import time
 import traceback
+#from advanced_bot2.data_analytics.v2 import optimized_detection_pipeline
 LAST_SUMMARY_TIME = 0  # Son summary gönderim zamanı (timestamp)
 SUMMARY_INTERVAL = 3600  # 30 dakika = 1800 sn
 
@@ -132,77 +133,78 @@ class TradingViewStrategy(IStrategy):
     async def on_price_update(self, ctx, symbol: str, price: float):
         
            # 3.1) USDT equity senkron
-        await self.sync_account_equity()
+        # await self.sync_account_equity()
 
-        # 3.2) Drawdown kontrolü
-        dd = self.pm.calc_drawdown(self.total_equity)
-        if dd > self.pm.max_drawdown:
-            log(f"[DDCheck] => drawdown={dd:.2%}>{self.pm.max_drawdown:.2%} => closeAll", "warning")
-            await self.close_all_positions(reason="drawdownStop")
-            return
+        # # 3.2) Drawdown kontrolü
+        # dd = self.pm.calc_drawdown(self.total_equity)
+        # if dd > self.pm.max_drawdown:
+        #     log(f"[DDCheck] => drawdown={dd:.2%}>{self.pm.max_drawdown:.2%} => closeAll", "warning")
+        #     await self.close_all_positions(reason="drawdownStop")
+        #     return
         
-        # 3.3) Karar mantığı (multi-timeframe + RL vs.)
-        df_main = ctx.df_map.get(symbol, {}).get("merged", None)
-        #print(df_main)
-        if df_main is None or len(df_main) < 10:
-            return  # Yeterli veri yok
+        # # 3.3) Karar mantığı (multi-timeframe + RL vs.)
+        #df_main = ctx.df_map.get(symbol, {}).get("merged", None)
+        #print(df_main.coloumns)
+        # #print(df_main)
+        # if df_main is None or len(df_main) < 10:
+        #     return  # Yeterli veri yok
 
-        row_main = df_main.iloc[-1]
+        # row_main = df_main.iloc[-1]
         st = ctx.symbol_map[symbol]
-        # MTF & RL 
-        regime = self.detect_regime(row_main, symbol)
-        base_p = ctx.param_for_regime.get(regime, ctx.param_for_regime["DEFAULT"])
-        obs = self.rl_agent.observe_environment({"symbol": symbol, "regime": regime})
-        action = self.rl_agent.select_action(obs)
-        merged_param = {
-            "stop_atr_mult": action.get("stop_atr_mult", base_p["stop_atr_mult"]),
-            "partial_levels": action.get("partial_levels", base_p["partial_levels"]),
-            "partial_ratio": action.get("partial_ratio", base_p["partial_ratio"])
-        }
+        # # MTF & RL 
+        # regime = self.detect_regime(row_main, symbol)
+        # base_p = ctx.param_for_regime.get(regime, ctx.param_for_regime["DEFAULT"])
+        # obs = self.rl_agent.observe_environment({"symbol": symbol, "regime": regime})
+        # action = self.rl_agent.select_action(obs)
+        # merged_param = {
+        #     "stop_atr_mult": action.get("stop_atr_mult", base_p["stop_atr_mult"]),
+        #     "partial_levels": action.get("partial_levels", base_p["partial_levels"]),
+        #     "partial_ratio": action.get("partial_ratio", base_p["partial_ratio"])
+        # }
 
-        # Skorlamalar
-        short_sco = self.eval_short_term(row_main, merged_param, symbol)
-        med_sco = self.eval_medium_term(row_main, merged_param, symbol)
-        long_sco = self.eval_long_term(row_main, merged_param, symbol)
-        adv_s_s = self.eval_advanced_indicators_short(row_main, merged_param, symbol)
-        adv_s_m = self.eval_advanced_indicators_medium(row_main, merged_param, symbol)
-        adv_s_l = self.eval_advanced_indicators_long(row_main, merged_param, symbol)
-        adv_score = adv_s_s + adv_s_m + adv_s_l
-        macro_s = self.macro.evaluate_macro(row_main)
-        vol_sco = self.one_min_vol.evaluate_1m_volatility(df_main)
-        senti = self.sentiment_onchain(row_main)
+        # # Skorlamalar
+        # short_sco = self.eval_short_term(row_main, merged_param, symbol)
+        # med_sco = self.eval_medium_term(row_main, merged_param, symbol)
+        # long_sco = self.eval_long_term(row_main, merged_param, symbol)
+        # adv_s_s = self.eval_advanced_indicators_short(row_main, merged_param, symbol)
+        # adv_s_m = self.eval_advanced_indicators_medium(row_main, merged_param, symbol)
+        # adv_s_l = self.eval_advanced_indicators_long(row_main, merged_param, symbol)
+        # adv_score = adv_s_s + adv_s_m + adv_s_l
+        # macro_s = self.macro.evaluate_macro(row_main)
+        # vol_sco = self.one_min_vol.evaluate_1m_volatility(df_main)
+        # senti = self.sentiment_onchain(row_main)
 
-        st_score = short_sco + med_sco + long_sco + adv_score + macro_s + vol_sco + senti
+        # st_score = short_sco + med_sco + long_sco + adv_score + macro_s + vol_sco + senti
         
-        total_s_s= short_sco +adv_s_s +macro_s 
-        # Örnek: Short/Med/Long aynı yönde ise ek puan verelim/ceza verelim.
-        synergy_bonus = 0
-        sum_sml = short_sco + med_sco + long_sco
-        if short_sco > 0 and med_sco > 0 and long_sco > 0:
-            synergy_bonus += 1  # Hepsi pozitif => alım sinyalini güçlendir
-        if short_sco < 0 and med_sco < 0 and long_sco < 0:
-            synergy_bonus -= 1  # Hepsi negatif => satış sinyalini güçlendir
+        # total_s_s= short_sco +adv_s_s +macro_s 
+        # # Örnek: Short/Med/Long aynı yönde ise ek puan verelim/ceza verelim.
+        # synergy_bonus = 0
+        # sum_sml = short_sco + med_sco + long_sco
+        # if short_sco > 0 and med_sco > 0 and long_sco > 0:
+        #     synergy_bonus += 1  # Hepsi pozitif => alım sinyalini güçlendir
+        # if short_sco < 0 and med_sco < 0 and long_sco < 0:
+        #     synergy_bonus -= 1  # Hepsi negatif => satış sinyalini güçlendir
 
-        st_score += synergy_bonus
+        # st_score += synergy_bonus
 
-        final_action = self.combine_scenario_with_ensemble(regime, st_score)      
-        # panik / reentry
-        if self.detect_panic_signal(row_main, symbol):
-            st.panic_count += 1
-        else:
-            st.panic_count = 0
-        st.panic_mode = (st.panic_count >= self.panic_confirm_bars)
+        # final_action = self.combine_scenario_with_ensemble(regime, st_score)      
+        # # panik / reentry
+        # if self.detect_panic_signal(row_main, symbol):
+        #     st.panic_count += 1
+        # else:
+        #     st.panic_count = 0
+        # st.panic_mode = (st.panic_count >= self.panic_confirm_bars)
       
-        reentry_allow = False
-        if st.last_sell_time:
-            mins_since = (datetime.utcnow() - st.last_sell_time).total_seconds() / 60.0
-            if mins_since < self.reentry_window_bars and st.reentry_count < self.max_reentry:
-                reentry_allow = True
+        # reentry_allow = False
+        # if st.last_sell_time:
+        #     mins_since = (datetime.utcnow() - st.last_sell_time).total_seconds() / 60.0
+        #     if mins_since < self.reentry_window_bars and st.reentry_count < self.max_reentry:
+        #         reentry_allow = True
 
        
-        log_msg = (f"[{symbol}] => final_act={final_action},holygrail_=,total_score={st_score},  "
-                    f"panic={st.panic_mode}, reentry={reentry_allow}, netPnL={st.net_pnl:.2f}, RL={action}")
-        log(log_msg, "info")      
+        # log_msg = (f"[{symbol}] => final_act={final_action},holygrail_=,total_score={st_score},  "
+        #             f"panic={st.panic_mode}, reentry={reentry_allow}, netPnL={st.net_pnl:.2f}, RL={action}")
+        # log(log_msg, "info")      
         #df_1m = ctx.df_map.get(symbol, {}).get("1m", None)
         # df_5m = ctx.df_map.get(symbol, {}).get("5m", None)
         # df_15m = ctx.df_map.get(symbol, {}).get("15m", None)
@@ -264,8 +266,18 @@ class TradingViewStrategy(IStrategy):
         # else:
         #     final_action = "HOLD"
 
- 
-   
+        # result = optimized_detection_pipeline(symbol, df_main)
+        
+        # print("\n⚡ Optimize Sonuçlar ⚡")
+        # if 'error' in result:
+        #     print(f"❌ Hata: {result['error']}")
+        # else:
+        #     print(f"🔮 Tahmin Olasılığı: {result['probability']}%")
+        #     print(f"📈 Pozisyon Büyüklüğü: {result['position_size']:.4f}")
+        #     print("\n📊 Performans Metrikleri:")
+        #     for k, v in result['metrics'].items():
+        #         print(f"▸ {k.upper():<10}: {v:.4f}")
+    
         if not st.has_position:
             # if (not st.panic_mode) and (final_act ==  "BUY"):
             #     if retest_info is not None:
@@ -1327,6 +1339,7 @@ class TradingViewStrategy(IStrategy):
                 time_frame_infos_str = json.dumps(time_frame_infos, ensure_ascii=False)  # JSON string formatına çevir  
                 prompt = f"Verilen tüm analiz ve pattern sonuclarini birlikte degerlendir ve gercekci bir Short ve Long onerisi yap. {time_frame_infos_str} {txt_report}{txt_summary}"              
                 open_ai= ctx.config.get("open_ai", False)
+                print(prompt)
                 if  open_ai:
                     openai_model = ctx.config.get("openai_model", None)
                     response_text=await openai_connect(prompt,openai_model)

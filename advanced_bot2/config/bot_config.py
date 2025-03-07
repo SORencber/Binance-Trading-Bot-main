@@ -27,7 +27,7 @@ BOT_CONFIG = {
     "paper_trading": True,
      # OCO ile Kademeli mi ? 
     "use_oco_kademeli" :False,
-    "symbols": ["BURGERUSDT"], 
+    "symbols": ["BTCUSDT"], 
     # Birden fazla borsa için veriler
     "exchanges": {
         "binance": {

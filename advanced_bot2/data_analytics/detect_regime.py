@@ -5,7 +5,7 @@ import schedule
 import time
 from datetime import datetime
 import traceback
-
+import talib
 ########################################
 # (B) Geliştirilmiş optimize_parameters Fonksiyonu (Grid Search Örneği)
 ########################################
@@ -68,7 +68,7 @@ def optimize_parameters(df, timeframe):
 ########################################
 # 1) detect_regime Fonksiyonu (Gelişmiş ve Hata Yönetimli)
 ########################################
-def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, optimize_params=False, param_override=None):
+async def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, optimize_params=False, param_override=None):
     """
     Verilen dataframe'de (df) belirli bir timeframe'e göre trend, momentum, hacim ve
     volatilite analizini yapıp, 'regime', 'signal' vb. bilgileri döndürür.
@@ -131,6 +131,8 @@ def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, o
             high = df[f"high_{timeframe}"]
             low = df[f"low_{timeframe}"]
             close = df[f"close_{timeframe}"]
+            open_ = df[f"open_{timeframe}"]
+
         except Exception as e:
             print(f"[COLUMN ERROR] Eksik kolon: {e}")
             traceback.print_exc()
@@ -195,6 +197,8 @@ def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, o
             loss = -delta.clip(upper=0)
             avg_gain = gain.ewm(alpha=1/period_rsi, adjust=False).mean()
             avg_loss = loss.ewm(alpha=1/period_rsi, adjust=False).mean()
+            #avg_gain = gain.rolling(period_rsi).mean()
+            #avg_loss = loss.rolling(period_rsi).mean()      
             rs = avg_gain / avg_loss.replace(0, np.nan)
             rsi = 100 - (100 / (1 + rs))
         except Exception as e:
@@ -359,19 +363,56 @@ def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, o
         except Exception as e:
             print(f"[Higher TF ERROR] {e}")
             traceback.print_exc()
+         # 3. FAKEOUT TESPİTİ --------------------------------------------------
+        fakeout_signal = None
+        fakeout_confidence = 0
+        recent_high = high.rolling(20).max().iloc[-1]
+        recent_low = low.rolling(20).min().iloc[-1]
+        
+        try:
+            # Breakout koşulları
+            breakout_up = close.iloc[-1] > recent_high * 1.001
+            breakout_down = close.iloc[-1] < recent_low * 0.999
+            
+            # Fakeout kriterleri
+            vol_ma = volume.rolling(20).mean().iloc[-1]
+            low_volume = volume.iloc[-1] < vol_ma * 0.8
+            close_confirmation = (breakout_up and close.iloc[-1] < open_.iloc[-1]) or (breakout_down and close.iloc[-1] > open_.iloc[-1])
+            rsi_divergence = (rsi.iloc[-1] > 70 and breakout_up) or (rsi.iloc[-1] < 30 and breakout_down)
+            wick_ratio = ((high.iloc[-1] - close.iloc[-1])/(high.iloc[-1] - low.iloc[-1]) > 0.7) if breakout_up else \
+                        ((close.iloc[-1] - low.iloc[-1])/(high.iloc[-1] - low.iloc[-1]) > 0.7)
+            # Üst zaman dilimi filtresi
+            higher_tf_conflict = False
+            if higher_df is not None and higher_timeframe:
+                higher_close = higher_df[f'Close_{higher_timeframe}'].iloc[-1]
+                higher_tf_conflict = (breakout_up and higher_close < recent_high) or (breakout_down and higher_close > recent_low)
 
+            # Fakeout skorlama
+            fakeout_conditions = [low_volume, close_confirmation, rsi_divergence, wick_ratio, higher_tf_conflict]
+            fakeout_score = sum(fakeout_conditions)
+            
+            if fakeout_score >= 3:
+                fakeout_confidence = min(90, fakeout_score * 25)
+                direction = 'Up' if breakout_up else 'Down'
+                fakeout_signal = f"Potential Fakeout ({direction}) | Confidence: {fakeout_confidence}%"
+                if higher_tf_conflict:
+                    fakeout_signal += " | Higher TF Conflict"
+
+        except Exception as e:
+            print(f"Fakeout Error: {str(e)}")
+            traceback.print_exc()
         # Trend belirleme
         trend = 'sideways'
         try:
             if not np.isnan(ma_slow.iloc[-1]):
-                if (close.iloc[-1] > ma_fast.iloc[-1] > ma_slow.iloc[-1]) and (adx_series.iloc[-1] > cfg['adx_trend']):
+                if (plus_di.iloc[-1] > minus_di.iloc[-1]) and (close.iloc[-1] > ma_fast.iloc[-1] > ma_slow.iloc[-1]) and (adx_series.iloc[-1] > cfg['adx_trend']):
                     trend = 'bullish'
-                elif (close.iloc[-1] < ma_fast.iloc[-1] < ma_slow.iloc[-1]) and (adx_series.iloc[-1] > cfg['adx_trend']):
+                elif (plus_di.iloc[-1] < minus_di.iloc[-1]) and (close.iloc[-1] < ma_fast.iloc[-1] < ma_slow.iloc[-1]) and (adx_series.iloc[-1] > cfg['adx_trend']):
                     trend = 'bearish'
             else:
-                if (close.iloc[-1] > ma_fast.iloc[-1]) and (adx_series.iloc[-1] > cfg['adx_trend']):
+                if (plus_di.iloc[-1] > minus_di.iloc[-1]) and (close.iloc[-1] > ma_fast.iloc[-1]) and (adx_series.iloc[-1] > cfg['adx_trend']):
                     trend = 'bullish'
-                elif (close.iloc[-1] < ma_fast.iloc[-1]) and (adx_series.iloc[-1] > cfg['adx_trend']):
+                elif (plus_di.iloc[-1] < minus_di.iloc[-1]) and (close.iloc[-1] < ma_fast.iloc[-1]) and (adx_series.iloc[-1] > cfg['adx_trend']):
                     trend = 'bearish'
         except Exception as e:
             print(f"[Trend ERROR] {e}")
@@ -522,8 +563,11 @@ def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, o
     # Stratejik notları güncelle (YENİ EKLENDİ)
         strategic_sell_note = None
         try:
-            if rsi.iloc[-1] > cfg['rsi_overbought']:
-                strategic_sell_note = f"RSI {rsi.iloc[-1]:.1f} > {cfg['rsi_overbought']} - Potansiyel Short Fırsatı"
+                if rsi.iloc[-1] > cfg['rsi_overbought']:
+                    strategic_sell_note = f"RSI {rsi.iloc[-1]:.1f} > {cfg['rsi_overbought']} - Potansiyel Short Fırsatı"
+                # Check last values explicitly with .iloc[-1] and handle NaNs
+                if (pd.notnull(rsi.iloc[-1]) and (rsi.iloc[-1] > 70)) and (pd.notnull(macd_hist.iloc[-1])) and (macd_hist.iloc[-1] < 0) and (pd.notnull(volume.iloc[-1])) and (volume.iloc[-1] > vol_ma.iloc[-1] * 1.5):
+                    strategic_sell_note = "Güçlü Satış Sinyali"
         except Exception as e:
             print(f"[Strategic Sell Note ERROR] {e}")
             traceback.print_exc()
@@ -548,6 +592,9 @@ def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, o
         except Exception as e:
             print(f"[Dynamic Score Volume ERROR] {e}")
             traceback.print_exc()
+        df[f"EMA_Trend_20"] = talib.EMA(df[f"close_{timeframe}"], timeperiod=20)
+        df[f"EMA_Trend_50"] = talib.EMA(df[f"close_{timeframe}"], timeperiod=50)
+        df[f"EMA_Trend_200"] = talib.EMA(df[f"close_{timeframe}"], timeperiod=200)
 
         # Sonuç sinyalleri
         signals = {
@@ -573,8 +620,18 @@ def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, o
             'potential_breakout_note': breakout_direction_note,
             'strategic_sell_note': strategic_sell_note,
         'rsi_value': float(rsi.iloc[-1]) if not np.isnan(rsi.iloc[-1]) else None,
+        'ema_trend_20': df[f"EMA_Trend_20"].iloc[-1],
+                'ema_trend_50': df[f"EMA_Trend_50"].iloc[-1],
+        'ema_trend_200': df[f"EMA_Trend_200"].iloc[-1],
 
-            'dynamic_score': dynamic_score 
+            'dynamic_score': dynamic_score ,
+             'fakeout': fakeout_signal,
+            'fakeout_confidence': fakeout_confidence,
+            'conditions': {
+                'volume_ratio': round(volume.iloc[-1]/vol_ma.iloc[-1], 2) if vol_ma.iloc[-1] > 0 else 0,
+                'trend_strength': "Strong" if adx_series.iloc[-1] > 25 else "Weak",
+                'bollinger_squeeze': bb_width.iloc[-1] < cfg['boll_band_squeeze']
+            }
         }
 
         return signals
@@ -588,7 +645,7 @@ def detect_regime(symbol,df, timeframe, higher_df=None, higher_timeframe=None, o
 ########################################
 # 2) Çoklu Zaman Dilimi Fonksiyonları
 ########################################
-def get_higher_tf(tf):
+async def get_higher_tf(tf):
     mapping = {
         '5m': '30m',
         '15m': '1h',
@@ -599,7 +656,7 @@ def get_higher_tf(tf):
     }
     return mapping.get(tf)
 
-def get_all_regimes(symbol,df_5m, df_15m, df_30m, df_1h, df_4h, df_1d, df_1w, optimize_params=False):
+async def get_all_regimes(symbol,df_5m, df_15m, df_30m, df_1h, df_4h, df_1d, df_1w, optimize_params=False):
     tf_dfs = {
         '5m': df_5m,
         '15m': df_15m,
@@ -614,7 +671,8 @@ def get_all_regimes(symbol,df_5m, df_15m, df_30m, df_1h, df_4h, df_1d, df_1w, op
     for tf in ['5m','15m','30m','1h','4h','1d','1w']:
         try:
             df = tf_dfs[tf]
-            higher_tf = get_higher_tf(tf)
+            print(df.columns)
+            higher_tf = await get_higher_tf(tf)
             optimized_params=None
             if optimize_params:
                 optimized_params = optimize_parameters(df, tf)
@@ -622,9 +680,9 @@ def get_all_regimes(symbol,df_5m, df_15m, df_30m, df_1h, df_4h, df_1d, df_1w, op
                 print(optimized_params)
             if higher_tf:
                 df_higher = tf_dfs[higher_tf]
-                out = detect_regime(symbol,df, tf, higher_df=df_higher, higher_timeframe=higher_tf, optimize_params=optimize_params, param_override=optimized_params)
+                out = await detect_regime(symbol,df, tf, higher_df=df_higher, higher_timeframe=higher_tf, optimize_params=optimize_params, param_override=optimized_params)
             else:
-                out = detect_regime(symbol,df, tf, optimize_params=optimize_params)
+                out = await detect_regime(symbol,df, tf, optimize_params=optimize_params)
             results[tf] = out
             print(out)
         except Exception as e:

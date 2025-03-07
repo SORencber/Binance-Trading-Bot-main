@@ -26,11 +26,12 @@ class MacroCollector:
 
         # ---- VIX ----
         vix_val = row.get("VIX", 20)
-        if vix_val > 30:
-            score -= 2
-        elif vix_val > 20:
-            score -= 1
-        elif vix_val < 15:
-            score += 1
+        if vix_val:
+            if vix_val > 30:
+                score -= 2
+            elif vix_val > 20:
+                score -= 1
+            elif vix_val < 15:
+                score += 1
 
         return score

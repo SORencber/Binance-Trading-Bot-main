@@ -6,11 +6,13 @@ from core.openai import openai_connect
 import json
 from exchange_clients.binance_spot_manager_async import BinanceSpotManagerAsync
 from config.bot_config import BOT_CONFIG, BINANCE_API_KEY, BINANCE_API_SECRET
-
+import  numpy as np
 from core.logging_setup import log
 
 import asyncio
-from data_analytics.detect_regime import get_all_regimes,analyze_multi_tf_alignment,produce_realistic_signal
+from data_analytics.detect_regime import get_all_regimes,produce_realistic_signal
+#from data_analytics.v2 import get_all_regimes,produce_realistic_signal
+
 from trading_view.main_tv import generate_signals
 from data.data_collector import update_data
 
@@ -40,23 +42,27 @@ def calculate_timeframe_score(tf_data):
     trend_weights = {'bullish': 2, 'bearish': -2, 'sideways': 0, 'neutral': 0}
     
     # Safe access for trend key, with default value 'neutral'
-    trend = tf_data.get('trend', 'neutral')  # Default to 'neutral' if 'trend' is missing
-    long_score += trend_weights.get(trend, 0)
-    short_score += trend_weights.get(trend, 0) * -1
-    
+    if tf_data.get('trend') is not None:  # None kontrolü
+        trend = tf_data.get('trend', 'neutral')  # Default to 'neutral' if 'trend' is missing
+        long_score += trend_weights.get(trend, 0)
+        short_score += trend_weights.get(trend, 0) * -1
+            
     # Momentum
-    momentum = tf_data.get('momentum', 'neutral')  # Default to 'neutral' if 'momentum' is missing
-    long_score += 1.5 if momentum == 'bullish' else -1.5 if momentum == 'bearish' else 0
-    short_score += 1.5 if momentum == 'bearish' else -1.5 if momentum == 'bullish' else 0
+    if tf_data.get('momentum') is not None:  # None kontrolü
+        momentum = tf_data.get('momentum', 'neutral')  # Default to 'neutral' if 'momentum' is missing
+        long_score += 1.5 if momentum == 'bullish' else -1.5 if momentum == 'bearish' else 0
+        short_score += 1.5 if momentum == 'bearish' else -1.5 if momentum == 'bullish' else 0
+        
+    if tf_data.get('rsi') is not None:  # None kontrolü
+        long_score += min(tf_data['rsi']/70, 1)
+        short_score += min((100 - tf_data['rsi'])/70, 1)
     
-    # Göstergeler
-    long_score += min(tf_data.get('rsi', 0)/70, 1)  # RSI 70'e normalize
-    short_score += min((100 - tf_data.get('rsi', 0))/70, 1)
-    
-    macd_hist = tf_data.get('macd_hist', 0)
-    long_score += macd_hist/abs(macd_hist) if macd_hist != 0 else 0
-    short_score += -macd_hist/abs(macd_hist) if macd_hist != 0 else 0
-    
+    if tf_data.get('macd_hist') is not None:  # None kontrolü
+
+        macd_hist = tf_data.get('macd_hist', 0)
+        long_score += macd_hist/abs(macd_hist) if macd_hist != 0 else 0
+        short_score += -macd_hist/abs(macd_hist) if macd_hist != 0 else 0
+        
     # Volatilite ve Momentum
     if tf_data.get('potential_breakout_note') and 'bullish' in tf_data.get('potential_breakout_note', ''):
    
@@ -113,7 +119,7 @@ async def analyze_coins(ctx: SharedContext,list_long=20):
         df_1d = ctx.df_map.get(symbol, {}).get("1d", None)
         df_1w = ctx.df_map.get(symbol, {}).get("1w", None)
 
-        get_regime_info = get_all_regimes(symbol, df_5m=df_5m, df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d, df_1w=df_1w)
+        get_regime_info =await get_all_regimes(symbol, df_5m=df_5m, df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d, df_1w=df_1w)
         
         total_long = 0
         total_short = 0
@@ -174,6 +180,43 @@ async def analyze_data(ctx:SharedContext, symbol: str):
             
         await send_telegram_messages(df_5m=df_5m,df_15m=df_15m, df_30m=df_30m, df_1h=df_1h, df_4h=df_4h, df_1d=df_1d,df_1w=df_1w, ctx=ctx, row_main=row_main, symbol=symbol, force_summary=force_summary)
 
+def validate_signal(row, df):
+    timeframe = row['timeframe']
+    trend = row['trend']
+    signal = row['signal']
+    
+    # Higher timeframe sinyal kontrolü
+    higher_timeframe = row['higher_timeframe_trend']
+    
+    # Ana trendin doğruluğunu kontrol et
+    if trend != higher_timeframe:
+        print(f"Warning: {timeframe} trend ({trend}) does not match higher timeframe trend ({higher_timeframe}).")
+    
+    # Fakeout kontrolü - Bollinger squeeze ve trend uyumu
+    if row['conditions']['bollinger_squeeze']:
+        if trend == 'bullish' and row['signal'] == 'Sell signal (short)':
+            print(f"Warning: Possible Fakeout on {timeframe}. Trend is bullish, but Sell signal given.")
+        elif trend == 'bearish' and row['signal'] == 'Buy signal (long)':
+            print(f"Warning: Possible Fakeout on {timeframe}. Trend is bearish, but Buy signal given.")
+    
+    # Eğer sinyal varsa, sinyali doğrula
+    if signal:
+        if signal == 'Sell signal (short)' and higher_timeframe in ['bullish', 'sideways']:
+            print(f"Invalid Sell Signal on {timeframe}. Higher timeframe is {higher_timeframe}.")
+        elif signal == 'Buy signal (long)' and higher_timeframe == 'bearish':
+            print(f"Invalid Buy Signal on {timeframe}. Higher timeframe is {higher_timeframe}.")
+    
+    # Botun sinyali vermesi için doğrulama işlemi
+    if signal == 'Buy signal (long)' and trend == 'bullish' and row['conditions']['bollinger_squeeze']:
+        print(f"Valid Buy Signal on {timeframe}.")
+        row['signal'] = 'Buy'
+    elif signal == 'Sell signal (short)' and trend == 'bearish' and row['conditions']['bollinger_squeeze']:
+        print(f"Valid Sell Signal on {timeframe}.")
+        row['signal'] = 'Sell'
+    else:
+        row['signal'] = 'No Signal'
+
+    return row
 
 async def decide_trade_mtf_with_pattern(df_5m,df_15m,df_30m, df_1h, df_4h,df_1d, df_1w,
                      symbol, 
@@ -200,7 +243,7 @@ async def decide_trade_mtf_with_pattern(df_5m,df_15m,df_30m, df_1h, df_4h,df_1d,
             ...
         }
         """
-        get_regime_info = get_all_regimes(symbol=symbol,df_5m=df_5m,df_15m=df_15m,df_30m=df_30m,df_1h=df_1h,df_4h=df_4h,df_1d=df_1d,df_1w=df_1w)
+        get_regime_info = await get_all_regimes(symbol=symbol,df_5m=df_5m,df_15m=df_15m,df_30m=df_30m,df_1h=df_1h,df_4h=df_4h,df_1d=df_1d,df_1w=df_1w)
         regime_info_5m= get_regime_info["5m"]               
 
         regime_info_15m= get_regime_info["15m"]               
@@ -208,46 +251,30 @@ async def decide_trade_mtf_with_pattern(df_5m,df_15m,df_30m, df_1h, df_4h,df_1d,
         regime_info_1h= get_regime_info["1h"]
         regime_info_4h= get_regime_info["4h"]
         regime_info_1d= get_regime_info["1d"]
-        synergy_intraday = analyze_multi_tf_alignment(get_regime_info, combo_name="intraday")
-        synergy_scalping = analyze_multi_tf_alignment(get_regime_info, combo_name="scalping")
-        synergy_swing = analyze_multi_tf_alignment(get_regime_info, combo_name="swing")
-        synergy_position = analyze_multi_tf_alignment(get_regime_info, combo_name="position")
-
-       # final_side = synergy_intraday["final_side"]
-       # score_details = synergy_intraday["score_details"]
-       # break_out_note = synergy_intraday["break_out_note"]
-        #total_score = synergy_intraday["total_score"]
-        #main_regime = synergy_intraday["main_regime"]
-        #patterns_used = synergy_intraday["patterns_used"]
-       # alignment = synergy_intraday["alignment"]
-       # print(synergy_intraday["alignment"])
-
-        # print(synergy_intraday)
-        # print(synergy_scalping)
-        # print(synergy_swing)
-
+      
+      
         # 1) MTF Sinyal Çağrıları
         sig_5m  =  await generate_signals(df_5m, symbol,time_frame="5m",ml_model=None,max_bars_ago=80, retest_tolerance=0.001, require_confirmed=True)
         #result_5m=combine_regime_and_pattern_signals(regime_info_5m,sig_5m["pattern_trade_levels"])
 
         
-        sig_15m =  await generate_signals(df_15m, symbol,time_frame="15m",ml_model=None,max_bars_ago=80, retest_tolerance=0.005, require_confirmed=True)
+        sig_15m =  await generate_signals(df_15m, symbol,time_frame="15m",ml_model=None,max_bars_ago=80, retest_tolerance=0.001, require_confirmed=True)
        # result_15m=combine_regime_and_pattern_signals(regime_info_15m,sig_15m["pattern_trade_levels"])
         result_15m=produce_realistic_signal(regime_info_15m,sig_15m["pattern_trade_levels"],"15m", "intraday")
         
-        sig_30m =  await generate_signals(df_30m, symbol,time_frame="30m",ml_model=None,max_bars_ago=90,retest_tolerance=0.005,  require_confirmed=True)
+        sig_30m =  await generate_signals(df_30m, symbol,time_frame="30m",ml_model=None,max_bars_ago=90,retest_tolerance=0.001,  require_confirmed=True)
         #result_30m=combine_regime_and_pattern_signals(regime_info_30m,sig_30m["pattern_trade_levels"])
         result_30m= produce_realistic_signal(regime_info_30m,sig_30m["pattern_trade_levels"],"30m", "intraday")
 
-        sig_1h  =  await generate_signals(df_1h, symbol, time_frame="1h", ml_model=None,max_bars_ago=300,retest_tolerance=0.01,  require_confirmed=True)
+        sig_1h  =  await generate_signals(df_1h, symbol, time_frame="1h", ml_model=None,max_bars_ago=300,retest_tolerance=0.001,  require_confirmed=True)
        # result_1h=combine_regime_and_pattern_signals(regime_info_1h,sig_1h["pattern_trade_levels"])
         result_1h=produce_realistic_signal(regime_info_1h,sig_1h["pattern_trade_levels"],"1h", "intraday")
 
-        sig_4h  =  await generate_signals(df_4h, symbol, time_frame="4h",ml_model=None ,max_bars_ago=300, retest_tolerance=0.01, require_confirmed=True)
+        sig_4h  =  await generate_signals(df_4h, symbol, time_frame="4h",ml_model=None ,max_bars_ago=300, retest_tolerance=0.001, require_confirmed=True)
        # result_4h=combine_regime_and_pattern_signals(regime_info_4h,sig_4h["pattern_trade_levels"])
         result_4h=produce_realistic_signal(regime_info_4h,sig_4h["pattern_trade_levels"],"4h", "intraday")
 
-        sig_1d  =  await generate_signals(df_1d, symbol, time_frame="1d",ml_model=None ,max_bars_ago=300, retest_tolerance=0.01, require_confirmed=True)
+        sig_1d  =  await generate_signals(df_1d, symbol, time_frame="1d",ml_model=None ,max_bars_ago=300, retest_tolerance=0.001, require_confirmed=True)
         #result_1d=combine_regime_and_pattern_signals(regime_info_1d,sig_1d["pattern_trade_levels"])
         result_1d=produce_realistic_signal(regime_info_1d,sig_1d["pattern_trade_levels"],"4h", "intraday")
 
@@ -304,37 +331,12 @@ async def decide_trade_mtf_with_pattern(df_5m,df_15m,df_30m, df_1h, df_4h,df_1d,
 
             "break_out_note": retest_data,
             "combined_score": combined_score,
-            "synergy_intraday":synergy_intraday,
-            "synergy_scalping": synergy_scalping ,
-       "synergy_swing": synergy_swing ,
-        "synergy_position" : synergy_position,
+          
         "get_regime_info":get_regime_info
 
         }
 
-        
-        # return {
-        #     "final_decision": final_decision,
-        #     "score_5m": score_5m,
-        #                 "score_15m": score_15m,
-
-
-        #     "score_30m": score_30m,
-        #     "score_1h":  score_1h,
-        #     "score_4h":  score_4h,
-        #     "score_1d": score_1d,
-        #     "patterns_5m": sig_5m["pattern_trade_levels"],
-
-        #     "patterns_15m": sig_15m["pattern_trade_levels"],
-
-        #     "patterns_30m": sig_30m["pattern_trade_levels"],
-        #     "patterns_1h":  sig_1h["pattern_trade_levels"],
-        #     "patterns_4h":  sig_4h["pattern_trade_levels"],
-        #     "patterns_1d":  sig_1d["pattern_trade_levels"],
-
-        #     "retest_info": retest_data,
-        #     "combined_score": combined_score
-        # }
+     
 
 async def format_pattern_results(mtf_dict: dict,price) -> str:
         """
@@ -581,12 +583,7 @@ async def send_telegram_messages(
             
             final_act = mtf_decision["final_decision"]
             #retest_info = mtf_decision["retest_info"]
-            synergy_intraday =mtf_decision["synergy_intraday"]
-            synergy_scalping =mtf_decision["synergy_scalping"]
-            synergy_swing =mtf_decision["synergy_swing"]
-            synergy_position =mtf_decision["synergy_position"]
-
-
+           
        
             log_msg = (f"[{symbol}] => final={final_act}, "
                         f"5m={mtf_decision['score_5m']},15m={mtf_decision['score_15m']},30m={mtf_decision['score_30m']},1h={mtf_decision['score_1h']},4h={mtf_decision['score_4h']},1d={mtf_decision['score_1d']}, "
@@ -595,16 +592,7 @@ async def send_telegram_messages(
             try:
                 txt_summary = (
                 f"<b>Coin:</b> {symbol}\n"
-                # f"----------------\n"
-                # f"<b>Kisa Vadeli Islemler[5 dakika, 15 dakika,  1 saat]:</b> {synergy_scalping}\n"
-                # f"----------------\n"
-                # f"<b>Gün İçi  Islemler[15 dakika, 1 Saat,  4 saat]:</b> {synergy_intraday}\n"
-                # f"----------------\n"
-                # f"<b>Orta Vadeli Islemler[1 saat, 4 Saat,  1 gün]:</b> {synergy_swing}\n"
-                # f"----------------\n"
-                # f"<b>Uzun Vadeli Islemler[1 günlük, 1 Haftalik]:</b> {synergy_position}\n"
-                # f"----------------\n"
-
+               
                 f"<b>son 5 dak. kapanış:</b> {close_5m:.4f}\n"
                 f"----------------\n"
                # f"<b>i̇ndikatör YÖN (1 saat):</b> {regime}\n"
@@ -654,7 +642,7 @@ async def send_telegram_messages(
                 await asyncio.sleep(5)
                 time_frame_infos=mtf_decision["get_regime_info"]
                 # Open AI baglantisi ve yorumlari alinir.
-                time_frame_infos_str = json.dumps(time_frame_infos, ensure_ascii=False)  # JSON string formatına çevir  
+                time_frame_infos_str = json.dumps(time_frame_infos, ensure_ascii=False, default=convert_types)
                 prompt = f"Verilen tüm analiz ve pattern sonuclarini birlikte degerlendir ve gercekci bir Short ve Long onerisi yap. {time_frame_infos_str} {txt_report}{txt_summary}"              
                 open_ai= ctx.config.get("open_ai", False)
                 if  open_ai:
@@ -809,3 +797,12 @@ async def summarize_patterns(results_dict, current_price):
             "long_max_sl": long_max_sl
         }
 
+def convert_types(obj):
+    """ NumPy türlerini JSON uyumlu hale getirir. """
+    if isinstance(obj, np.bool_):  # NumPy boolean'ı normal bool'a çevir
+        return bool(obj)
+    if isinstance(obj, np.integer):  # NumPy integer'ı normal int'e çevir
+        return int(obj)
+    if isinstance(obj, np.floating):  # NumPy floating'i normal float'a çevir
+        return float(obj)
+    return obj

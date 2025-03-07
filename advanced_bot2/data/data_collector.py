@@ -435,6 +435,10 @@ def load_and_calc_1w(csv_path_1w: str) -> pd.DataFrame:
     for c in old_cols:
         if c == "timestamp":
             new_cols.append(c)
+        elif c.endswith("_1w"):
+            # zaten _1 ile bitiyor => bir daha ekleme!
+            new_cols.append(c)
+      
         else:
             new_cols.append(c + "_1w")
     df_1w.columns = new_cols
@@ -635,7 +639,7 @@ async def loop_data_collector(ctx: SharedContext, strategy):
 
                 # 7) CSV update => 1d
                 csv_1d_path = f"data_storage/{s}_1d.csv"
-                df_1d = await update_klines_csv(ctx.client_async, s, "1d", csv_1d_path, max_rows=1000)
+                df_1d = await update_klines_csv(ctx.client_async, s, "1d", csv_1d_path, max_rows=3000)
                
                 csv_1w_path = f"data_storage/{s}_1w.csv"
                 await update_klines_csv(ctx.client_async, s, "1w", csv_1w_path, max_rows=1000)
@@ -717,7 +721,7 @@ async def loop_data_collector(ctx: SharedContext, strategy):
 
             # 12) strategy analyze
             await strategy.analyze_data()
-            await asyncio.sleep(300)
+            await asyncio.sleep(5000000)
 
         except Exception as e:
             log(f"[loop_data_collector] => {e}\n{traceback.format_exc()}", "error")
@@ -770,7 +774,7 @@ async def update_data(ctx: SharedContext,s:str="BTCUSDT"):
 
             # 7) CSV update => 1d
             csv_1d_path = f"data_storage/{s}_1d.csv"
-            df_1d = await update_klines_csv(ctx.client_async, s, "1d", csv_1d_path, max_rows=1000)
+            df_1d = await update_klines_csv(ctx.client_async, s, "1d", csv_1d_path, max_rows=3000)
             
             csv_1w_path = f"data_storage/{s}_1w.csv"
             await update_klines_csv(ctx.client_async, s, "1w", csv_1w_path, max_rows=1000)
@@ -819,13 +823,13 @@ async def update_data(ctx: SharedContext,s:str="BTCUSDT"):
             df_final.loc[last_idx, "News_Headlines"]   = fetch_news_headlines_cached("BTCUSDT", NEW_API_KEY, interval_minutes=30)
 
             
-            funding_rate,open_interest,order_book_num,total_asks,total_bids= await get_fetch_data(s)
+            #funding_rate,open_interest,order_book_num,total_asks,total_bids= await get_fetch_data(s)
             #print(funding_rate,open_interest,order_book_num,total_asks,total_bids)
-            df_final.loc[last_idx,'Order_Book_Num'] = order_book_num
-            df_final.loc[last_idx,'OrderBook_BidVol'] = total_bids
-            df_final.loc[last_idx,'OrderBook_AskVol'] = total_asks
-            df_final.loc[last_idx,'Funding_Rate'] = funding_rate
-            df_final.loc[last_idx,'Open_Interest'] = open_interest
+            # df_final.loc[last_idx,'Order_Book_Num'] = order_book_num
+            # df_final.loc[last_idx,'OrderBook_BidVol'] = total_bids
+            # df_final.loc[last_idx,'OrderBook_AskVol'] = total_asks
+            # df_final.loc[last_idx,'Funding_Rate'] = funding_rate
+            # df_final.loc[last_idx,'Open_Interest'] = open_interest
             # 11) synergy / analyze
             print("analiz basladi")
             #holy_grail_all_timeframes(df_final)
